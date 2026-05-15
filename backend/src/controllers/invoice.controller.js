@@ -46,7 +46,6 @@ const createInvoice = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found");
     }
 
-    // Verify if the client email actually exists in the real world (SMTP/MX checks)
     // Verify if the client email actually exists (MX records and Syntax)
     try {
         const { valid, reason, validators } = await emailValidator({
@@ -59,7 +58,6 @@ const createInvoice = asyncHandler(async (req, res) => {
         }
     } catch (err) {
         if (err instanceof ApiError) throw err;
-        console.warn("Client email validation error (skipped):", err.message);
     }
 
     const amountNum = Number(amount);
