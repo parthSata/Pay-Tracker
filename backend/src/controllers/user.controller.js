@@ -32,27 +32,36 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(400, "Name, email and password are required")
     }
 
-    // Verify if the email actually exists in the real world (SMTP/MX checks)
-    console.log("Starting email validation for:", email);
+    // Verify if the email actually exists (MX records and Syntax)
+    // Note: validateSMTP is disabled because Port 25 is blocked on Render
+    console.log("Starting safe email validation (MX + Syntax) for:", email);
     try {
-        const { valid, reason, validators } = await emailValidator(email);
+        const { valid, reason, validators } = await emailValidator({
+            email,
+            validateSMTP: false, // This prevents the AggregateError on Render
+        });
+        
         console.log("Validation result:", { valid, reason });
+        
         if (!valid) {
             const reasonMsg = validators[reason]?.reason || "Invalid or non-existent email address";
-            console.warn(`Soft validation warning for ${email}: ${reasonMsg}`);
+            throw new ApiError(400, `Email validation failed: ${reasonMsg}`);
         }
     } catch (err) {
-        console.warn("Email validator crashed (swallowing error):", err.message);
+        if (err instanceof ApiError) throw err;
+        console.warn("Email validator error (skipped):", err.message);
     }
 
     try {
         console.log("Checking if user already exists in DB...");
         const existedUser = await User.findOne({ email: email.toLowerCase().trim() })
+        console.log("Existed user check done. Found:", !!existedUser);
 
         if (existedUser) {
             throw new ApiError(409, "User with email already exists")
         }
 
+        console.log("Creating user in DB...");
         const user = await User.create({
             name,
             email,
@@ -60,6 +69,7 @@ const registerUser = asyncHandler( async (req, res) => {
             businessName: businessName || "",
             upiId: upiId || ""
         })
+        console.log("User created successfully. ID:", user._id);
 
         const createdUser = await User.findById(user._id).select("-password -refreshToken")
 

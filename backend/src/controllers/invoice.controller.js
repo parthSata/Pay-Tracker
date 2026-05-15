@@ -47,14 +47,19 @@ const createInvoice = asyncHandler(async (req, res) => {
     }
 
     // Verify if the client email actually exists in the real world (SMTP/MX checks)
+    // Verify if the client email actually exists (MX records and Syntax)
     try {
-        const { valid, reason, validators } = await emailValidator(clientEmail);
+        const { valid, reason, validators } = await emailValidator({
+            email: clientEmail,
+            validateSMTP: false,
+        });
         if (!valid) {
             const reasonMsg = validators[reason]?.reason || "Invalid or non-existent email address";
-            console.warn(`Soft validation failed for client ${clientEmail}: ${reasonMsg}`);
+            throw new ApiError(400, `Client email validation failed: ${reasonMsg}`);
         }
     } catch (err) {
-        console.warn("Client email validation warning:", err);
+        if (err instanceof ApiError) throw err;
+        console.warn("Client email validation error (skipped):", err.message);
     }
 
     const amountNum = Number(amount);
