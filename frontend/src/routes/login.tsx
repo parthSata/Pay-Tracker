@@ -3,6 +3,8 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "../auth";
+import { useState } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -31,6 +33,8 @@ export const Route = createFileRoute("/login")({
 function LoginComponent() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [showResend, setShowResend] = useState(false);
+  const [resending, setResending] = useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -41,14 +45,34 @@ function LoginComponent() {
   });
 
   async function onSubmit(data: LoginFormValues) {
+    setShowResend(false);
     try {
       await login(data.email, data.password);
       toast.success("Logged in successfully!");
       navigate({ to: "/" });
-    } catch (error) {
-      toast.error("Failed to login. Please check your credentials.");
+    } catch (error: any) {
+      // If forbidden, it means email is not verified
+      if (error.response?.status === 403) {
+        setShowResend(true);
+      }
     }
   }
+
+  const handleResend = async () => {
+    const email = form.getValues("email");
+    if (!email) return;
+
+    setResending(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/users/resend-verification`, { email });
+      toast.success("Verification link resent! Please check your inbox.");
+      setShowResend(false);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to resend link");
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,6 +124,20 @@ function LoginComponent() {
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Logging in..." : "Login"}
               </Button>
+
+              {showResend && (
+                <div className="pt-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full border-primary/30 text-primary hover:bg-primary/5"
+                    onClick={handleResend}
+                    disabled={resending}
+                  >
+                    {resending ? "Sending..." : "Resend Verification Link"}
+                  </Button>
+                </div>
+              )}
             </form>
           </Form>
         </CardContent>

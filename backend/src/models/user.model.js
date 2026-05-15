@@ -47,6 +47,13 @@ const userSchema = new Schema(
         businessState: {
             type: String,
             default: "Gujarat",
+        },
+        isVerified: {
+            type: Boolean,
+            default: false,
+        },
+        emailVerificationToken: {
+            type: String,
         }
     },
     {

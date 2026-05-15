@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import emailValidator from "deep-email-validator";
+import crypto from "crypto";
+import { sendEmail } from "../utils/sendEmail.js";
 
 const generateAccessAndRefereshTokens = async(userId) =>{
     try {
@@ -49,18 +51,63 @@ const registerUser = asyncHandler( async (req, res) => {
         const existedUser = await User.findOne({ email: email.toLowerCase().trim() })
 
         if (existedUser) {
-            throw new ApiError(409, "User with email already exists")
+            if (existedUser.isVerified) {
+                throw new ApiError(409, "User with email already exists")
+            } else {
+                // If user exists but is NOT verified, resend the verification email
+                const newToken = crypto.randomBytes(32).toString("hex");
+                existedUser.emailVerificationToken = newToken;
+                await existedUser.save({ validateBeforeSave: false });
+
+                const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${newToken}`;
+                await sendEmail(
+                    email,
+                    "Verify your Pay Tracker Account",
+                    `
+                    <h3>Welcome back!</h3>
+                    <p>It looks like you haven't verified your account yet. Please click the button below to activate it:</p>
+                    <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
+                    <p>${verificationUrl}</p>
+                    `
+                );
+
+                return res.status(200).json(
+                    new ApiResponse(200, {}, "A new verification link has been sent to your email.")
+                );
+            }
         }
+
+        const verificationToken = crypto.randomBytes(32).toString("hex");
 
         const user = await User.create({
             name,
             email,
             password,
             businessName: businessName || "",
-            upiId: upiId || ""
+            upiId: upiId || "",
+            isVerified: false,
+            emailVerificationToken: verificationToken
         })
 
-        const createdUser = await User.findById(user._id).select("-password -refreshToken")
+        if (!user) {
+            throw new ApiError(500, "Something went wrong while registering the user")
+        }
+
+        // Send Verification Email
+        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+        await sendEmail(
+            email,
+            "Verify your Pay Tracker Account",
+            `
+            <h3>Welcome to Pay Tracker!</h3>
+            <p>Please verify your email address to activate your account:</p>
+            <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <p>${verificationUrl}</p>
+            `
+        );
+
+        const createdUser = await User.findById(user._id).select("-password -refreshToken -emailVerificationToken")
 
         if (!createdUser) {
             throw new ApiError(500, "Something went wrong while registering the user")
@@ -92,6 +139,10 @@ const loginUser = asyncHandler(async (req, res) => {
 
     if (!isPasswordValid) {
         throw new ApiError(401, "Invalid user credentials")
+    }
+
+    if (!user.isVerified) {
+        throw new ApiError(403, "Please verify your email before logging in. Check your inbox!")
     }
 
     const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
@@ -190,6 +241,66 @@ const updateGstSettings = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "GST settings updated successfully"))
 })
 
+const resendVerificationEmail = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (user.isVerified) {
+        throw new ApiError(400, "Email is already verified");
+    }
+
+    const newToken = crypto.randomBytes(32).toString("hex");
+    user.emailVerificationToken = newToken;
+    await user.save({ validateBeforeSave: false });
+
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${newToken}`;
+    await sendEmail(
+        email,
+        "Verify your Pay Tracker Account",
+        `
+        <h3>Welcome back!</h3>
+        <p>You requested a new verification link. Please click the button below to activate your account:</p>
+        <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
+        <p>${verificationUrl}</p>
+        `
+    );
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "A new verification link has been sent to your email."));
+})
+
+const verifyEmail = asyncHandler(async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        throw new ApiError(400, "Verification token is required");
+    }
+
+    const user = await User.findOne({ emailVerificationToken: token });
+
+    if (!user) {
+        throw new ApiError(400, "Invalid or expired verification token");
+    }
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Email verified successfully! You can now login."));
+})
+
 const checkEmailExists = asyncHandler(async (req, res) => {
     const { email } = req.query;
     if (!email) {
@@ -209,5 +320,7 @@ export {
     logoutUser,
     updateUserDetails,
     updateGstSettings,
-    checkEmailExists
+    checkEmailExists,
+    verifyEmail,
+    resendVerificationEmail
 }
