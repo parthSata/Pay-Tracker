@@ -22,7 +22,9 @@ const generateAccessAndRefereshTokens = async(userId) =>{
 }
 
 const registerUser = asyncHandler( async (req, res) => {
-    const { name, email, password, businessName, upiId } = req.body
+    console.log("--- REGISTRATION START ---");
+    const { name, email, password, businessName, upiId } = req.body;
+    console.log("Payload received:", { name, email, businessName, upiId });
 
     if (
         [name, email, password].some((field) => !field || String(field)?.trim() === "")
@@ -31,19 +33,20 @@ const registerUser = asyncHandler( async (req, res) => {
     }
 
     // Verify if the email actually exists in the real world (SMTP/MX checks)
+    console.log("Starting email validation for:", email);
     try {
         const { valid, reason, validators } = await emailValidator(email);
+        console.log("Validation result:", { valid, reason });
         if (!valid) {
             const reasonMsg = validators[reason]?.reason || "Invalid or non-existent email address";
-            throw new ApiError(400, `Fake email detected: ${reasonMsg}`);
+            console.warn(`Soft validation warning for ${email}: ${reasonMsg}`);
         }
     } catch (err) {
-        // Fallback in case the validator crashes or network error
-        if (err instanceof ApiError) throw err;
-        console.warn("Email validation warning:", err);
+        console.warn("Email validator crashed (swallowing error):", err.message);
     }
 
     try {
+        console.log("Checking if user already exists in DB...");
         const existedUser = await User.findOne({ email: email.toLowerCase().trim() })
 
         if (existedUser) {
@@ -68,6 +71,7 @@ const registerUser = asyncHandler( async (req, res) => {
             new ApiResponse(201, createdUser, "User registered Successfully")
         )
     } catch (error) {
+        console.error("CRITICAL REGISTRATION ERROR:", error);
         // Detailed error for debugging live 400 issues
         const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
         const message = error.message || "An unexpected error occurred during registration";
