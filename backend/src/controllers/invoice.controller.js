@@ -51,10 +51,9 @@ const createInvoice = asyncHandler(async (req, res) => {
         const { valid, reason, validators } = await emailValidator(clientEmail);
         if (!valid) {
             const reasonMsg = validators[reason]?.reason || "Invalid or non-existent email address";
-            throw new ApiError(400, `Fake client email detected: ${reasonMsg}`);
+            console.warn(`Soft validation failed for client ${clientEmail}: ${reasonMsg}`);
         }
     } catch (err) {
-        if (err instanceof ApiError) throw err;
         console.warn("Client email validation warning:", err);
     }
 

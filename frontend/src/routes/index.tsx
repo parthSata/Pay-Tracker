@@ -392,9 +392,9 @@ function Dashboard() {
                     logs.map((log) => (
                       <div key={log._id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-accent/40 transition-colors">
                         <div className={`mt-0.5 h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${log.action === 'PAYMENT_RECEIVED' ? 'bg-success-soft text-success' :
-                            log.action === 'INVOICE_CREATED' ? 'bg-primary-soft text-primary' :
-                              log.action === 'PAYMENT_PROOF_UPLOADED' ? 'bg-warning-soft text-warning' :
-                                'bg-muted text-muted-foreground'
+                          log.action === 'INVOICE_CREATED' ? 'bg-primary-soft text-primary' :
+                            log.action === 'PAYMENT_PROOF_UPLOADED' ? 'bg-warning-soft text-warning' :
+                              'bg-muted text-muted-foreground'
                           }`}>
                           {log.action === 'PAYMENT_RECEIVED' ? <CheckCircle2 className="h-4 w-4" /> :
                             log.action === 'INVOICE_CREATED' ? <Plus className="h-4 w-4" /> :

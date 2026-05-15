@@ -101,11 +101,11 @@ function PublicPay() {
                 {inv.taxType === "CGST_SGST" ? (
                   <>
                     <div className="flex justify-between text-xs text-muted-foreground/80 pl-4">
-                      <span>CGST ({inv.gstRate/2}%)</span>
+                      <span>CGST ({inv.gstRate / 2}%)</span>
                       <span className="tabular-nums">{formatINR(inv.cgst)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground/80 pl-4">
-                      <span>SGST ({inv.gstRate/2}%)</span>
+                      <span>SGST ({inv.gstRate / 2}%)</span>
                       <span className="tabular-nums">{formatINR(inv.sgst)}</span>
                     </div>
                   </>
@@ -183,8 +183,8 @@ function PublicPay() {
                     Online payment link not generated. Please contact the merchant.
                   </div>
                 )}
-                
-                <button 
+
+                <button
                   onClick={downloadPDF}
                   className="w-full mt-4 flex-1 border border-border bg-muted/30 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-muted/50 transition-colors print:hidden"
                 >

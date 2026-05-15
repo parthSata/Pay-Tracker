@@ -168,11 +168,11 @@ function CreateInvoice() {
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</div>
               <FloatingInput label="Client name" value={client} onChange={setClient} />
               <div className="space-y-1">
-                <FloatingInput 
-                  label="Email address" 
-                  type="email" 
-                  value={email} 
-                  onChange={setEmail} 
+                <FloatingInput
+                  label="Email address"
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
                   onBlur={() => checkEmail(email)}
                 />
                 {emailWarning && <p className="text-[11px] text-amber-500 font-medium px-1 mt-1 animate-fade-in">{emailWarning}</p>}

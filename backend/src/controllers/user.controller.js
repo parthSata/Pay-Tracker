@@ -25,7 +25,7 @@ const registerUser = asyncHandler( async (req, res) => {
     const { name, email, password, businessName, upiId } = req.body
 
     if (
-        [name, email, password].some((field) => !field || field?.trim() === "")
+        [name, email, password].some((field) => !field || String(field)?.trim() === "")
     ) {
         throw new ApiError(400, "Name, email and password are required")
     }
@@ -68,7 +68,15 @@ const registerUser = asyncHandler( async (req, res) => {
             new ApiResponse(201, createdUser, "User registered Successfully")
         )
     } catch (error) {
-        throw new ApiError(error.statusCode || 400, `BACKEND_ERROR: ${error.message}`, error.errors);
+        // Detailed error for debugging live 400 issues
+        const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
+        const message = error.message || "An unexpected error occurred during registration";
+        
+        throw new ApiError(
+            statusCode, 
+            `REGISTRATION_FAILED: ${message}`, 
+            error.errors || []
+        );
     }
 })
 
