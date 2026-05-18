@@ -31,7 +31,7 @@ const getRazorpayInstance = () => {
 };
 
 const createInvoice = asyncHandler(async (req, res) => {
-    const { clientName, clientEmail, amount, dueDate, paymentMethod, clientState, gstRate: manualGstRate } = req.body;
+    const { clientName, clientEmail, amount, dueDate, paymentMethod, clientState, gstRate: manualGstRate, notes } = req.body;
 
     if (
         [clientName, clientEmail, amount, dueDate].some((field) => 
@@ -50,7 +50,9 @@ const createInvoice = asyncHandler(async (req, res) => {
     try {
         const { valid, reason, validators } = await emailValidator({
             email: clientEmail,
-            validateSMTP: false,
+            validateSMTP: true,
+            validateTypo: false,
+            validateDisposable: false,
         });
         if (!valid) {
             const reasonMsg = validators[reason]?.reason || "Invalid or non-existent email address";
@@ -122,7 +124,7 @@ const createInvoice = asyncHandler(async (req, res) => {
                 },
                 notify: {
                     sms: false,
-                    email: true,
+                    email: false,
                 },
                 reminder_enable: true,
                 notes: {
@@ -156,6 +158,7 @@ const createInvoice = asyncHandler(async (req, res) => {
         razorpayLinkId,
         paymentMethod: paymentMethod || "RAZORPAY",
         status: "PENDING",
+        notes,
         history: [{
             action: "CREATED",
             details: `Invoice created with number ${invoiceNumber}`
@@ -185,6 +188,12 @@ const createInvoice = asyncHandler(async (req, res) => {
                 <p style="margin: 5px 0; color: #374151;">Amount Due: <strong style="font-size: 18px;">₹${totalWithTax.toFixed(2)}</strong></p>
                 <p style="margin: 5px 0; color: #374151;">Due Date: <strong>${new Date(dueDate).toLocaleDateString()}</strong></p>
             </div>
+            ${notes ? `
+            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 5px 0; color: #374151;"><strong>Notes:</strong></p>
+                <p style="margin: 5px 0; color: #6b7280;">${notes}</p>
+            </div>
+            ` : ''}
             <p>Scan the QR code below to pay instantly via any UPI app (GPay, PhonePe, Paytm):</p>
             <div style="text-align: center; margin: 20px 0;">
                 <img src="${qrUrl}" alt="Payment QR Code" style="border: 1px solid #eee; border-radius: 10px; width: 180px; height: 180px;" />
@@ -413,21 +422,22 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }
 
     invoices.forEach(inv => {
+        const invTotal = inv.totalAmount || (inv.amount + (inv.gstAmount || 0));
         if (inv.status === "PAID") {
-            stats.totalRevenue += inv.amount;
+            stats.totalRevenue += invTotal;
             if (inv.paidAt) {
                 const paid = inv.paidAt instanceof Date ? inv.paidAt : new Date(inv.paidAt);
                 if (!Number.isNaN(paid.getTime()) && paid >= thirtyDaysAgo) {
                     const dateKey = paid.toISOString().split("T")[0];
                     if (cashflowMap.has(dateKey)) {
-                        cashflowMap.set(dateKey, cashflowMap.get(dateKey) + inv.amount);
+                        cashflowMap.set(dateKey, cashflowMap.get(dateKey) + invTotal);
                     }
                 }
             }
         } else if (inv.status === "PENDING") {
-            stats.pending += inv.amount;
+            stats.pending += invTotal;
         } else if (inv.status === "OVERDUE") {
-            stats.overdue += inv.amount;
+            stats.overdue += invTotal;
         }
     });
 

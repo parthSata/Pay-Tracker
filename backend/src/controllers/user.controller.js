@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
+import { Invoice } from "../models/invoice.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import emailValidator from "deep-email-validator";
 import crypto from "crypto";
@@ -36,7 +37,9 @@ const registerUser = asyncHandler( async (req, res) => {
     try {
         const { valid, reason, validators } = await emailValidator({
             email,
-            validateSMTP: false,
+            validateSMTP: true,
+            validateTypo: false,
+            validateDisposable: false,
         });
         
         if (!valid) {
@@ -310,9 +313,33 @@ const checkEmailExists = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     
     return res.status(200).json(
-        new ApiResponse(200, { exists: !!user }, user ? "Email is registered" : "Email is available")
+        new ApiResponse(200, { 
+            exists: !!user, 
+            isVerified: user?.isVerified || false 
+        }, user ? "Email is registered" : "Email is available")
     );
 })
+
+const deleteAccount = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    
+    // Delete all invoices belonging to this user
+    await Invoice.deleteMany({ owner: userId });
+    
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    };
+    
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, {}, "Account deleted successfully"));
+});
 
 export {
     registerUser,
@@ -322,5 +349,6 @@ export {
     updateGstSettings,
     checkEmailExists,
     verifyEmail,
-    resendVerificationEmail
+    resendVerificationEmail,
+    deleteAccount
 }

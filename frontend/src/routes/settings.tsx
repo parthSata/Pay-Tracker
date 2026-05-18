@@ -25,8 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNotifications } from "../context/NotificationContext";
-import { useAuth } from "../auth";
-import axios from "axios";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -45,7 +43,7 @@ const sections = [
   { id: "regional", label: "Regional", icon: Globe },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "gst", label: "GST Settings", icon: Shield },
-  { id: "danger", label: "Danger zone", icon: Trash2 },
+  { id: "danger", label: "Delete Account", icon: Trash2 },
 ];
 
 function SettingsPage() {
@@ -97,7 +95,7 @@ function SettingsPage() {
             {active === "regional" && <Regional />}
             {active === "billing" && <Billing />}
             {active === "gst" && <GstSettings />}
-            {active === "danger" && <DangerZone />}
+            {active === "danger" && <DeleteAccountZone />}
           </div>
         </div>
       </div>
@@ -254,18 +252,18 @@ function Security() {
   );
 }
 
+import { useAppearanceSettings, useRegionalSettings, useGstSettings, useDeleteAccount } from "@/hooks/useSettings";
+
 function Appearance() {
-  const [theme, setTheme] = useState("light");
+  const { theme, handleSetTheme } = useAppearanceSettings();
+
   return (
     <Panel title="Appearance" description="Customize the look of your dashboard.">
       <div className="grid sm:grid-cols-3 gap-3">
         {(["light", "dark", "system"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => {
-              setTheme(t);
-              toast(`Theme set to ${t}`);
-            }}
+            onClick={() => handleSetTheme(t)}
             className={`rounded-2xl border p-4 text-left transition-all hover:shadow-pop ${
               theme === t ? "border-primary ring-2 ring-primary/30 bg-primary-soft" : "border-border bg-card"
             }`}
@@ -296,12 +294,21 @@ function Appearance() {
 }
 
 function Regional() {
+  const {
+    t,
+    currency, setCurrency,
+    language, setLanguage,
+    timezone, setTimezone,
+    dateFormat, setDateFormat,
+    handleSave
+  } = useRegionalSettings();
+
   return (
-    <Panel title="Regional preferences" description="Currency, language and timezone defaults.">
+    <Panel title={t('regional_preferences')} description={t('currency_language_timezone')}>
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Currency</Label>
-          <Select defaultValue="inr">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('currency')}</Label>
+          <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="inr">₹ Indian Rupee (INR)</SelectItem>
@@ -312,20 +319,19 @@ function Regional() {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Language</Label>
-          <Select defaultValue="en">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('language')}</Label>
+          <Select value={language} onValueChange={setLanguage}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="en">English</SelectItem>
               <SelectItem value="hi">हिन्दी (Hindi)</SelectItem>
-              <SelectItem value="ta">தமிழ் (Tamil)</SelectItem>
-              <SelectItem value="mr">मराठी (Marathi)</SelectItem>
+              <SelectItem value="gu">ગુજરાતી (Gujarati)</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Timezone</Label>
-          <Select defaultValue="ist">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('timezone')}</Label>
+          <Select value={timezone} onValueChange={setTimezone}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ist">Asia/Kolkata (IST)</SelectItem>
@@ -335,8 +341,8 @@ function Regional() {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Date format</Label>
-          <Select defaultValue="dmy">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t('date_format')}</Label>
+          <Select value={dateFormat} onValueChange={setDateFormat}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="dmy">DD/MM/YYYY</SelectItem>
@@ -345,6 +351,11 @@ function Regional() {
             </SelectContent>
           </Select>
         </div>
+      </div>
+      <div className="flex justify-end mt-4">
+        <Button onClick={handleSave} className="gradient-primary text-primary-foreground shadow-glow">
+          <Save className="h-4 w-4 mr-2" /> {t('save_preferences')}
+        </Button>
       </div>
     </Panel>
   );
@@ -383,33 +394,14 @@ function Billing() {
 }
 
 function GstSettings() {
-  const { user, setUser } = useAuth();
-  const [gstEnabled, setGstEnabled] = useState(user?.gstEnabled || false);
-  const [gstNumber, setGstNumber] = useState(user?.gstNumber || "");
-  const [defaultGstRate, setDefaultGstRate] = useState(user?.defaultGstRate || 18);
-  const [businessState, setBusinessState] = useState(user?.businessState || "Gujarat");
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const token = localStorage.getItem("pay_tracker_token");
-      const response = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/users/update-gst`,
-        { gstEnabled, gstNumber, defaultGstRate, businessState },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      const updatedUser = response.data.data;
-      setUser(updatedUser);
-      localStorage.setItem("pay_tracker_user", JSON.stringify(updatedUser));
-      toast.success("GST settings updated successfully");
-    } catch (error) {
-      toast.error("Failed to update GST settings");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const {
+    gstEnabled, setGstEnabled,
+    gstNumber, setGstNumber,
+    defaultGstRate, setDefaultGstRate,
+    businessState, setBusinessState,
+    isSaving,
+    handleSave
+  } = useGstSettings();
 
   const states = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Lakshadweep", "Delhi", "Puducherry", "Ladakh", "Jammu and Kashmir"
@@ -490,9 +482,14 @@ function GstSettings() {
   );
 }
 
-function DangerZone() {
+function DeleteAccountZone() {
+  const {
+    isDeleting,
+    handleDelete
+  } = useDeleteAccount();
+
   return (
-    <Panel title="Danger zone" description="Irreversible actions. Proceed with care.">
+    <Panel title="Delete Account" description="Irreversible actions. Proceed with care.">
       <div className="space-y-3">
         <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive-soft p-4">
           <div>
@@ -503,9 +500,10 @@ function DangerZone() {
           </div>
           <Button
             variant="destructive"
-            onClick={() => toast.error("Confirm via email to delete")}
+            onClick={handleDelete}
+            disabled={isDeleting}
           >
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
+            <Trash2 className="h-4 w-4 mr-2" /> {isDeleting ? "Deleting..." : "Delete Account"}
           </Button>
         </div>
       </div>

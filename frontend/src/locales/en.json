@@ -1,0 +1,16 @@
+{
+  "settings": "Settings",
+  "notifications": "Notifications",
+  "appearance": "Appearance",
+  "regional": "Regional",
+  "billing": "Billing",
+  "gst_settings": "GST Settings",
+  "danger_zone": "Danger zone",
+  "regional_preferences": "Regional preferences",
+  "currency_language_timezone": "Currency, language and timezone defaults.",
+  "currency": "Currency",
+  "language": "Language",
+  "timezone": "Timezone",
+  "date_format": "Date format",
+  "save_preferences": "Save preferences"
+}

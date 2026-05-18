@@ -1,10 +1,9 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useState, useRef } from "react";
-import axios from "axios";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
+import { useVerifyEmail } from "@/hooks/useVerifyEmail";
 
 export const Route = createFileRoute("/verify-email")({
   component: VerifyEmailComponent,
@@ -13,33 +12,7 @@ export const Route = createFileRoute("/verify-email")({
 function VerifyEmailComponent() {
   const { token } = useSearch({ from: "/verify-email" }) as { token?: string };
   const navigate = useNavigate();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [message, setMessage] = useState("");
-  const called = useRef(false);
-
-  useEffect(() => {
-    if (!token || called.current) return;
-
-    const verify = async () => {
-      called.current = true;
-      try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/users/verify-email?token=${token}`);
-        setStatus("success");
-        setMessage(response.data.message || "Email verified successfully!");
-      } catch (error: any) {
-        // If the backend says already verified, treat as success
-        if (error.response?.data?.message?.includes("already verified")) {
-            setStatus("success");
-            setMessage("Email is already verified!");
-        } else {
-            setStatus("error");
-            setMessage(error.response?.data?.message || "Verification failed. The link may be expired.");
-        }
-      }
-    };
-
-    verify();
-  }, [token, called]);
+  const { status, message } = useVerifyEmail(token);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

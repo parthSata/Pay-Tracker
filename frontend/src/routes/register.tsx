@@ -1,9 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
-import { useAuth } from "../auth";
+import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,63 +11,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
-
-const registerSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-  businessName: z.string().optional(),
-  upiId: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
+import { useRegisterForm } from "@/hooks/useRegisterForm";
 
 export const Route = createFileRoute("/register")({
   component: RegisterComponent,
 });
 
 function RegisterComponent() {
-  const { register } = useAuth();
-  const navigate = useNavigate();
-  
-  const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      fullName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      businessName: "",
-      upiId: "",
-    },
-  });
-
-  async function onSubmit(data: RegisterFormValues) {
-    try {
-      await register(data);
-      navigate({ to: "/login" });
-    } catch (error) {
-      // Error handled by AuthProvider toast
-    }
-  }
-
-  const checkEmail = async (email: string) => {
-    if (!email || !email.includes('@')) return;
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/users/check-email?email=${email}`);
-      if (res.data?.data?.exists) {
-        form.setError("email", { type: "manual", message: "Email is already registered" });
-      } else {
-        form.clearErrors("email");
-      }
-    } catch (e) {
-      // ignore
-    }
-  };
+  const { form, onSubmit, checkEmail } = useRegisterForm();
 
   return (
     <div className="min-h-screen bg-background">

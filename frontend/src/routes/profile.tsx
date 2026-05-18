@@ -6,10 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "../auth";
-import { useState } from "react";
 import { hasStoredSession } from "@/lib/session";
-
 export const Route = createFileRoute("/profile")({
   beforeLoad: () => {
     if (!hasStoredSession()) {
@@ -25,28 +22,16 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
+import { useProfile } from "@/hooks/useProfile";
+
 function ProfilePage() {
-  const { user, updateUser, isLoading } = useAuth();
-  
-  const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    businessName: user?.businessName || "",
-    upiId: user?.upiId || "",
-  });
-
-  const handleSave = async () => {
-    try {
-      await updateUser(formData);
-    } catch (error) {
-      // Error handled in auth context
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const {
+    user,
+    isLoading,
+    formData,
+    handleSave,
+    handleChange
+  } = useProfile();
 
   return (
     <AppShell>

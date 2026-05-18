@@ -1,12 +1,8 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CreditCard, FileText, TrendingUp, Loader2, CheckCircle2, Clock, Trash2, ExternalLink, ShieldCheck, LogOut } from "lucide-react";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { toast } from "sonner";
+import { StatCard } from "@/components/StatCard";
+import { Users, CreditCard, FileText, TrendingUp, Loader2, CheckCircle2, Clock, LogOut, ShieldCheck, ExternalLink, Trash2 } from "lucide-react";
 import { formatINR } from "@/lib/mock";
-import { CountUp } from "@/components/CountUp";
-import { useAuth } from "../auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -24,61 +20,18 @@ export const Route = createFileRoute("/admin/dashboard")({
   component: AdminDashboardComponent,
 });
 
+import { useAdminDashboard } from "@/hooks/useAdminDashboard";
+
 function AdminDashboardComponent() {
-  const { logout } = useAuth();
-  const [stats, setStats] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUsersLoading, setIsUsersLoading] = useState(false);
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("pay_tracker_token");
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStats(response.data.data);
-    } catch (error) {
-      toast.error("Failed to load admin statistics");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchUsers = async () => {
-    setIsUsersLoading(true);
-    try {
-      const token = localStorage.getItem("pay_tracker_token");
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUsers(response.data.data);
-    } catch (error) {
-      toast.error("Failed to load users list");
-    } finally {
-      setIsUsersLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user and all their invoices? This action cannot be undone.")) return;
-    
-    try {
-      const token = localStorage.getItem("pay_tracker_token");
-      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      toast.success("User deleted successfully");
-      fetchUsers();
-      fetchStats();
-    } catch (error) {
-      toast.error("Failed to delete user");
-    }
-  };
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  const {
+    stats,
+    users,
+    isLoading,
+    isUsersLoading,
+    fetchUsers,
+    handleDeleteUser,
+    logout
+  } = useAdminDashboard();
 
   if (isLoading) {
     return (
@@ -131,20 +84,16 @@ function AdminDashboardComponent() {
         <TabsContent value="overview" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {cards.map((stat, i) => (
-              <Card key={i} className="relative overflow-hidden shadow-glow border-border/50 bg-card/80 backdrop-blur-sm group">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{stat.title}</CardTitle>
-                  <div className={`h-9 w-9 rounded-xl bg-linear-to-br ${stat.color} flex items-center justify-center text-white shadow-lg`}>
-                    <stat.icon className="h-5 w-5" />
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="text-3xl font-bold tracking-tight">
-                    <CountUp to={stat.value} format={stat.isCurrency ? formatINR : undefined} />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 font-medium">{stat.desc}</p>
-                </CardContent>
-              </Card>
+              <StatCard
+                key={i}
+                label={stat.title}
+                value={stat.value}
+                icon={stat.icon}
+                color={stat.color}
+                desc={stat.desc}
+                isCurrency={stat.isCurrency}
+                delay={i * 50}
+              />
             ))}
           </div>
 

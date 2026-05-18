@@ -3,6 +3,7 @@ import { Invoice } from "../models/invoice.model.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { formatINR } from "../utils/formatINR.js";
 import Razorpay from "razorpay";
+import { User } from "../models/user.model.js";
 
 // Razorpay Instance Helper
 let razorpay;
@@ -133,6 +134,16 @@ export const initCronJobs = () => {
                     inv.status = "OVERDUE";
                     await inv.save();
                 }
+            }
+
+            // 2. Clean up unverified users older than 24 hours
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const deletedUsers = await User.deleteMany({
+                isVerified: false,
+                createdAt: { $lt: twentyFourHoursAgo }
+            });
+            if (deletedUsers.deletedCount > 0) {
+                console.log(`🧹 [CRON] Cleaned up ${deletedUsers.deletedCount} unverified users.`);
             }
 
         } catch (error) {

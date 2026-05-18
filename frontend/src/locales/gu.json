@@ -1,0 +1,16 @@
+{
+  "settings": "સેટિંગ્સ",
+  "notifications": "સૂચનાઓ",
+  "appearance": "દેખાવ",
+  "regional": "પ્રાદેશિક",
+  "billing": "બિલિંગ",
+  "gst_settings": "જીએસટી સેટિંગ્સ",
+  "danger_zone": "જોખમી વિસ્તાર",
+  "regional_preferences": "પ્રાદેશિક પસંદગીઓ",
+  "currency_language_timezone": "ચલણ, ભાષા અને સમય ઝોન ડિફોલ્ટ્સ.",
+  "currency": "ચલણ",
+  "language": "ભાષા",
+  "timezone": "સમય ઝોન",
+  "date_format": "તારીખ ફોર્મેટ",
+  "save_preferences": "પસંદગીઓ સાચવો"
+}

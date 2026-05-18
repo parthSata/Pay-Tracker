@@ -1,0 +1,16 @@
+{
+  "settings": "सेटिंग्स",
+  "notifications": "सूचनाएं",
+  "appearance": "दिखावट",
+  "regional": "क्षेत्रीय",
+  "billing": "बिलिंग",
+  "gst_settings": "जीएसटी सेटिंग्स",
+  "danger_zone": "खतरे का क्षेत्र",
+  "regional_preferences": "क्षेत्रीय प्राथमिकताएं",
+  "currency_language_timezone": "मुद्रा, भाषा और समय क्षेत्र डिफ़ॉल्ट।",
+  "currency": "मुद्रा",
+  "language": "भाषा",
+  "timezone": "समय क्षेत्र",
+  "date_format": "दिनांक प्रारूप",
+  "save_preferences": "प्राथमिकताएं सहेजें"
+}

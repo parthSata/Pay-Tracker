@@ -15,7 +15,7 @@ const getAdminStats = asyncHandler(async (req, res) => {
         {
             $group: {
                 _id: null,
-                totalRevenue: { $sum: "$amount" }
+                totalRevenue: { $sum: { $add: ["$amount", { $ifNull: ["$gstAmount", 0] }] } }
             }
         }
     ]);
@@ -27,7 +27,7 @@ const getAdminStats = asyncHandler(async (req, res) => {
         {
             $group: {
                 _id: null,
-                totalPending: { $sum: "$amount" }
+                totalPending: { $sum: { $add: ["$amount", { $ifNull: ["$gstAmount", 0] }] } }
             }
         }
     ]);
@@ -70,7 +70,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
                     count: { $sum: 1 },
                     revenue: {
                         $sum: {
-                            $cond: [{ $eq: ["$status", "PAID"] }, "$amount", 0]
+                            $cond: [{ $eq: ["$status", "PAID"] }, { $add: ["$amount", { $ifNull: ["$gstAmount", 0] }] }, 0]
                         }
                     }
                 }

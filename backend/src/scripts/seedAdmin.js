@@ -12,30 +12,23 @@ const seedAdmin = async () => {
         const adminEmail = "parth@paytracker.com";
         const adminPass = "PayTracker@1709";
 
-        // Check if admin already exists
         const existingAdmin = await User.findOne({ email: adminEmail });
 
         if (existingAdmin) {
-            console.log("⚠️ Admin already exists. Updating password...");
             existingAdmin.password = adminPass;
             existingAdmin.role = "ADMIN"; // Ensure role is ADMIN
+            existingAdmin.isVerified = true;
             await existingAdmin.save();
-            console.log("✅ Admin updated successfully!");
         } else {
-            console.log("🚀 Creating new Admin...");
             await User.create({
                 name: "Parth Admin",
                 email: adminEmail,
                 password: adminPass,
-                role: "ADMIN"
+                role: "ADMIN",
+                isVerified: true
             });
-            console.log("✅ Admin created successfully!");
         }
 
-        console.log("\n--- Admin Credentials ---");
-        console.log(`Email: ${adminEmail}`);
-        console.log(`Pass:  ${adminPass}`);
-        console.log("---------------------------\n");
 
         await mongoose.connection.close();
         process.exit(0);

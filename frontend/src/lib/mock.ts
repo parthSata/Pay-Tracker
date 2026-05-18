@@ -47,3 +47,11 @@ export function formatINR(n: number) {
     maximumFractionDigits: 0,
   }).format(n);
 }
+
+export function inrShort(n: number) {
+  return n >= 1e7
+    ? `₹${(n / 1e7).toFixed(1)}Cr`
+    : n >= 1e5
+      ? `₹${(n / 1e5).toFixed(1)}L`
+      : `₹${(n / 1e3).toFixed(0)}K`;
+}

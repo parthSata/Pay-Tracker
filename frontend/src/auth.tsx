@@ -20,7 +20,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (data: any) => Promise<void>;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -33,8 +33,19 @@ const API_URL = import.meta.env.VITE_API_URL;
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem("pay_tracker_user");
+    const token = localStorage.getItem("pay_tracker_token");
+    if (storedUser && token) {
+      try {
+        return JSON.parse(storedUser);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("pay_tracker_user");
@@ -42,10 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedUser && !token) {
       localStorage.removeItem("pay_tracker_user");
       setUser(null);
-    } else if (storedUser) {
-      setUser(JSON.parse(storedUser));
     }
-    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -59,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("pay_tracker_token", accessToken);
       
       toast.success("Welcome back!");
+      return userData;
     } catch (error: any) {
       const message = error.response?.data?.message || "Login failed";
       toast.error(message);
