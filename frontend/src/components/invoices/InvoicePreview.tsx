@@ -1,5 +1,5 @@
 import { Sparkles } from "lucide-react";
-import { formatINR } from "@/lib/mock";
+import { formatINR } from "@/lib/utils";
 
 interface InvoicePreviewProps {
   user: any;

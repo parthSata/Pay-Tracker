@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { useNotifications } from "../context/NotificationContext";
-import { formatINR, type InvoiceStatus } from "@/lib/mock";
+import { formatINR, type InvoiceStatus } from "@/lib/utils";
 
 export const filters: ("all" | "remaining" | InvoiceStatus)[] = ["all", "remaining", "paid", "pending", "overdue"];
 

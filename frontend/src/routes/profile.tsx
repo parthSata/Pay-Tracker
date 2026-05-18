@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { hasStoredSession } from "@/lib/session";
 export const Route = createFileRoute("/profile")({
   beforeLoad: () => {
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 import { useProfile } from "@/hooks/useProfile";
-import { ProfileForm } from "@/components/ProfileForm";
+import { ProfileForm } from "@/components/profile/ProfileForm";
 
 function ProfilePage() {
   const {

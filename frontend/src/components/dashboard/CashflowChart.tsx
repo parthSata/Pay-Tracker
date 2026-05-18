@@ -1,5 +1,5 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { inrShort, formatINR } from "@/lib/mock";
+import { inrShort, formatINR } from "@/lib/utils";
 
 interface CashflowChartProps {
   data: any[];

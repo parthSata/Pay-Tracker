@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2, CreditCard } from "lucide-react";
-import { StatusBadge } from "@/components/StatusBadge";
-import { formatINR } from "@/lib/mock";
+import { Loader2, CreditCard, Eye } from "lucide-react";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatINR } from "@/lib/utils";
 
 interface ReceivedInvoicesTableProps {
   invoices: any[];
@@ -52,14 +52,25 @@ export function ReceivedInvoicesTable({ invoices, isLoading }: ReceivedInvoicesT
                   </td>
                   <td className="px-5 py-3.5"><StatusBadge status={inv.status.toLowerCase() as any} /></td>
                   <td className="px-5 py-3.5 text-right">
-                    <Link 
-                      to="/invoices/pay/$id"
-                      params={{ id: inv._id }}
-                      className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:opacity-90 transition-opacity"
-                    >
-                      <CreditCard className="h-3 w-3" />
-                      Pay Now
-                    </Link>
+                    {inv.status.toLowerCase() === "paid" ? (
+                      <Link 
+                        to="/invoices/pay/$id"
+                        params={{ id: inv._id }}
+                        className="inline-flex items-center gap-1.5 bg-secondary text-secondary-foreground px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:opacity-90 transition-opacity"
+                      >
+                        <Eye className="h-3 w-3" />
+                        Details
+                      </Link>
+                    ) : (
+                      <Link 
+                        to="/invoices/pay/$id"
+                        params={{ id: inv._id }}
+                        className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:opacity-90 transition-opacity"
+                      >
+                        <CreditCard className="h-3 w-3" />
+                        Pay Now
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))

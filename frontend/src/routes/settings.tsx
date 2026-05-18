@@ -9,14 +9,14 @@ import {
   Trash2,
   Shield,
 } from "lucide-react";
-import { AppShell } from "@/components/AppShell";
-import { NotificationsSection } from "@/components/NotificationsSection";
-import { SecuritySection } from "@/components/SecuritySection";
-import { AppearanceSection } from "@/components/AppearanceSection";
-import { RegionalSection } from "@/components/RegionalSection";
-import { BillingSection } from "@/components/BillingSection";
-import { GstSettingsSection } from "@/components/GstSettingsSection";
-import { DeleteAccountSection } from "@/components/DeleteAccountSection";
+import { AppShell } from "@/components/layout/AppShell";
+import { NotificationsSection } from "@/components/settings/NotificationsSection";
+import { SecuritySection } from "@/components/settings/SecuritySection";
+import { AppearanceSection } from "@/components/settings/AppearanceSection";
+import { RegionalSection } from "@/components/settings/RegionalSection";
+import { BillingSection } from "@/components/settings/BillingSection";
+import { GstSettingsSection } from "@/components/settings/GstSettingsSection";
+import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({

@@ -1,8 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import axios from "axios";
-import { AppShell } from "@/components/AppShell";
-import { PublicInvoiceCard } from "@/components/PublicInvoiceCard";
-import { PublicPaymentCard } from "@/components/PublicPaymentCard";
+import { AppShell } from "@/components/layout/AppShell";
+import { PublicInvoiceCard } from "@/components/invoices/PublicInvoiceCard";
+import { PublicPaymentCard } from "@/components/invoices/PublicPaymentCard";
 
 export const Route = createFileRoute("/pay/$id")({
   loader: async ({ params }) => {

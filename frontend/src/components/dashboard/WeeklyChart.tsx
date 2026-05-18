@@ -1,5 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { inrShort, formatINR } from "@/lib/mock";
+import { inrShort, formatINR } from "@/lib/utils";
 
 interface WeeklyChartProps {
   data: any[];

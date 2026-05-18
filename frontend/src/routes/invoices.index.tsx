@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const Route = createFileRoute("/invoices/")({
   head: () => ({
@@ -12,9 +12,9 @@ export const Route = createFileRoute("/invoices/")({
 });
 
 import { useInvoicesList } from "@/hooks/useInvoicesList";
-import { InvoicesHeader } from "@/components/InvoicesHeader";
-import { InvoicesFilters } from "@/components/InvoicesFilters";
-import { InvoicesTable } from "@/components/InvoicesTable";
+import { InvoicesHeader } from "@/components/invoices/InvoicesHeader";
+import { InvoicesFilters } from "@/components/invoices/InvoicesFilters";
+import { InvoicesTable } from "@/components/invoices/InvoicesTable";
 
 function InvoiceList() {
   const {

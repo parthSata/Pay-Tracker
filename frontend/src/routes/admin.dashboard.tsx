@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatCard } from "@/components/StatCard";
+import { StatCard } from "@/components/dashboard/StatCard";
 import { Users, CreditCard, FileText, TrendingUp, Loader2, CheckCircle2, Clock, LogOut, ShieldCheck, ExternalLink, Trash2 } from "lucide-react";
-import { formatINR } from "@/lib/mock";
+import { formatINR } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";

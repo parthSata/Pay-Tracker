@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const Route = createFileRoute("/invoices/received")({
   head: () => ({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/invoices/received")({
 });
 
 import { useReceivedInvoices } from "@/hooks/useReceivedInvoices";
-import { ReceivedInvoicesTable } from "@/components/ReceivedInvoicesTable";
+import { ReceivedInvoicesTable } from "@/components/invoices/ReceivedInvoicesTable";
 
 function ReceivedInvoices() {
   const { invoices, isLoading } = useReceivedInvoices();

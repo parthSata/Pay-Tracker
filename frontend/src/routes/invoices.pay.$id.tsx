@@ -1,9 +1,9 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { ShieldCheck, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { InvoiceDetails } from "@/components/InvoiceDetails";
-import { PaymentSection } from "@/components/PaymentSection";
+import { InvoiceDetails } from "@/components/invoices/InvoiceDetails";
+import { PaymentSection } from "@/components/shared/PaymentSection";
 import axios from "axios";
 
 export const Route = createFileRoute("/invoices/pay/$id")({

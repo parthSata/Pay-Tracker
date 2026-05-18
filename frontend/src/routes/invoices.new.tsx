@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/invoices/new")({
@@ -13,8 +13,8 @@ export const Route = createFileRoute("/invoices/new")({
 });
 
 import { useCreateInvoice, states } from "@/hooks/useCreateInvoice";
-import { CreateInvoiceForm } from "@/components/CreateInvoiceForm";
-import { InvoicePreview } from "@/components/InvoicePreview";
+import { CreateInvoiceForm } from "@/components/invoices/CreateInvoiceForm";
+import { InvoicePreview } from "@/components/invoices/InvoicePreview";
 
 function CreateInvoice() {
   const {

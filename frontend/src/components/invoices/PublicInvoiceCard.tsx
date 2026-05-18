@@ -1,4 +1,4 @@
-import { formatINR } from "@/lib/mock";
+import { formatINR } from "@/lib/utils";
 
 interface PublicInvoiceCardProps {
   inv: any;

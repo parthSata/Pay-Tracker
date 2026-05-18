@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { StatusBadge } from "@/components/StatusBadge";
-import { formatINR, type InvoiceStatus } from "@/lib/mock";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatINR, type InvoiceStatus } from "@/lib/utils";
 
 interface RecentInvoicesProps {
   invoices: any[];

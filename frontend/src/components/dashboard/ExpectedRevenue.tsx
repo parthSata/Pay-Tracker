@@ -1,6 +1,6 @@
 import { Sparkles } from "lucide-react";
-import { CountUp } from "@/components/CountUp";
-import { formatINR } from "@/lib/mock";
+import { CountUp } from "@/components/shared/CountUp";
+import { formatINR } from "@/lib/utils";
 
 interface ExpectedRevenueProps {
   pending: number;

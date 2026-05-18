@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRouteWithContext } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "../auth";
+import { useAppearanceSettings } from "@/hooks/useSettings";
 
 interface MyRouterContext {
   auth: ReturnType<typeof useAuth>;
@@ -34,6 +35,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootComponent() {
+  useAppearanceSettings();
+
   return (
     <div className="min-h-screen bg-background font-sans antialiased">
       <Outlet />

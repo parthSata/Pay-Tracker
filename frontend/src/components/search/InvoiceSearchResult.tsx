@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Download, Upload, Loader2 } from "lucide-react";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 
 interface InvoiceSearchResultProps {
   invoice: any;

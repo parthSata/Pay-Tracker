@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useVerifyEmail } from "@/hooks/useVerifyEmail";
-import { VerifyEmailCard } from "@/components/VerifyEmailCard";
+import { VerifyEmailCard } from "@/components/auth/VerifyEmailCard";
 
 export const Route = createFileRoute("/verify-email")({
   component: VerifyEmailComponent,

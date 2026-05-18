@@ -29,8 +29,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "../auth";
-import { useNotifications } from "../context/NotificationContext";
+import { useAuth } from "../../auth";
+import { useNotifications } from "../../context/NotificationContext";
 import { isNavActive } from "@/lib/navActive";
 
 const nav = [

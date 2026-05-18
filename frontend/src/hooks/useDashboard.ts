@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { useNotifications } from "../context/NotificationContext";
-import { formatINR } from "@/lib/mock";
+import { formatINR } from "@/lib/utils";
 
 export function useDashboard() {
   const [invoices, setInvoices] = useState<any[]>([]);

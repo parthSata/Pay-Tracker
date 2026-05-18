@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { formatINR } from "@/lib/mock";
-import { AppShell } from "@/components/AppShell";
-import { InvoiceSearchForm } from "@/components/InvoiceSearchForm";
-import { InvoiceSearchResult } from "@/components/InvoiceSearchResult";
+import { formatINR } from "@/lib/utils";
+import { AppShell } from "@/components/layout/AppShell";
+import { InvoiceSearchForm } from "@/components/search/InvoiceSearchForm";
+import { InvoiceSearchResult } from "@/components/search/InvoiceSearchResult";
 
 export const Route = createFileRoute("/search")({
   component: InvoiceSearchPage,

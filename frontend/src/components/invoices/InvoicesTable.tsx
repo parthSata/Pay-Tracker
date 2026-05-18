@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Loader2, ArrowUpDown } from "lucide-react";
-import { StatusBadge } from "@/components/StatusBadge";
-import { formatINR, type InvoiceStatus } from "@/lib/mock";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatINR, type InvoiceStatus } from "@/lib/utils";
 
 interface InvoicesTableProps {
   rows: any[];
