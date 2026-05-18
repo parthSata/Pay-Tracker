@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useGstSettings } from "@/hooks/useSettings";
-import { Panel, Row } from "./SettingsComponents";
+import { Panel, Row } from "@/components/settings/SettingsComponents";
 
 export function GstSettingsSection() {
   const {

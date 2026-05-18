@@ -1,7 +1,7 @@
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useAppearanceSettings } from "@/hooks/useSettings";
-import { Panel, Row } from "./SettingsComponents";
+import { Panel, Row } from "@/components/settings/SettingsComponents";
 
 export function AppearanceSection() {
   const { theme, handleSetTheme } = useAppearanceSettings();

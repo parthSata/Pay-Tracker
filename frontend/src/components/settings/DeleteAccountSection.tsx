@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { useDeleteAccount } from "@/hooks/useSettings";
-import { Panel } from "./SettingsComponents";
+import { Panel } from "@/components/settings/SettingsComponents";
 
 export function DeleteAccountSection() {
   const {

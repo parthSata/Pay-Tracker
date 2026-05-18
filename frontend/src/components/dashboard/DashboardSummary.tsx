@@ -1,5 +1,5 @@
 import { TrendingUp, Clock, AlertTriangle } from "lucide-react";
-import { StatCard } from "./StatCard";
+import { StatCard } from "@/components/dashboard/StatCard";
 
 interface DashboardSummaryProps {
   totalRevenue: number;

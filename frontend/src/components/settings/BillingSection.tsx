@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Panel } from "./SettingsComponents";
+import { Panel } from "@/components/settings/SettingsComponents";
 
 export function BillingSection() {
   return (

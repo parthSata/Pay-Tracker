@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import { useRegionalSettings } from "@/hooks/useSettings";
-import { Panel } from "./SettingsComponents";
+import { Panel } from "@/components/settings/SettingsComponents";
 
 export function RegionalSection() {
   const {

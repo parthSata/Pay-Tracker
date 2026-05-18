@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Shield } from "lucide-react";
 import { toast } from "sonner";
-import { Panel, Row } from "./SettingsComponents";
+import { Panel, Row } from "@/components/settings/SettingsComponents";
 
 export function SecuritySection() {
   return (

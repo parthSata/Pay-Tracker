@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { useNotifications } from "../../context/NotificationContext";
-import { Panel, Row } from "./SettingsComponents";
+import { Panel, Row } from "@/components/settings/SettingsComponents";
 
 export function NotificationsSection() {
   const { settings, updateSettings } = useNotifications();
