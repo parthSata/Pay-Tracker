@@ -516,6 +516,92 @@ const getReceivedInvoices = asyncHandler(async (req, res) => {
     );
 });
 
+const getClientRiskAnalytics = asyncHandler(async (req, res) => {
+    const invoices = await Invoice.find({ userId: req.user._id });
+
+    const clientsMap = {};
+
+    invoices.forEach(inv => {
+        const email = inv.clientEmail.toLowerCase().trim();
+        if (!clientsMap[email]) {
+            clientsMap[email] = {
+                clientEmail: email,
+                clientName: inv.clientName,
+                invoices: []
+            };
+        }
+        clientsMap[email].invoices.push(inv);
+        if (!clientsMap[email].latestDate || new Date(inv.createdAt) > new Date(clientsMap[email].latestDate)) {
+            clientsMap[email].clientName = inv.clientName;
+            clientsMap[email].latestDate = inv.createdAt;
+        }
+    });
+
+    const clientAnalytics = Object.values(clientsMap).map(client => {
+        const totalInvoices = client.invoices.length;
+        const unpaidInvoices = client.invoices.filter(inv => inv.status === "PENDING" || inv.status === "OVERDUE").length;
+        const paidInvoices = client.invoices.filter(inv => inv.status === "PAID").length;
+        
+        let latePayments = 0;
+        let totalDelayDays = 0;
+
+        client.invoices.forEach(inv => {
+            if (inv.status === "PAID") {
+                const dueDate = new Date(inv.dueDate);
+                const paidDate = inv.paidAt ? new Date(inv.paidAt) : new Date(inv.updatedAt);
+                if (paidDate > dueDate) {
+                    latePayments += 1;
+                    const diffTime = paidDate - dueDate;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    totalDelayDays += Math.max(0, diffDays);
+                }
+            }
+        });
+
+        const unpaidRatio = totalInvoices > 0 ? (unpaidInvoices / totalInvoices) : 0;
+        const averageDelayDays = paidInvoices > 0 ? Math.round(totalDelayDays / paidInvoices) : 0;
+        const latePaymentFrequency = paidInvoices > 0 ? (latePayments / paidInvoices) : 0;
+
+        let riskLevel = "Reliable";
+        let riskColor = "GREEN";
+
+        if ((unpaidRatio > 0.5 && totalInvoices >= 3) || (averageDelayDays > 14 && latePayments >= 2)) {
+            riskLevel = "High Risk Client";
+            riskColor = "RED";
+        } else if ((unpaidRatio > 0.25 && totalInvoices >= 2) || (averageDelayDays > 5 && latePayments >= 1)) {
+            riskLevel = "Moderate Risk";
+            riskColor = "YELLOW";
+        }
+
+        let insight = "";
+        if (paidInvoices === 0) {
+            insight = `No completed payments yet (${unpaidInvoices} outstanding)`;
+        } else if (averageDelayDays === 0) {
+            insight = `${client.clientName} usually pays on time.`;
+        } else {
+            insight = `${client.clientName} usually pays ${averageDelayDays} days late.`;
+        }
+
+        return {
+            clientName: client.clientName,
+            clientEmail: client.clientEmail,
+            totalInvoices,
+            unpaidInvoices,
+            paidInvoices,
+            unpaidRatio,
+            averageDelayDays,
+            latePaymentFrequency,
+            riskLevel,
+            riskColor,
+            insight
+        };
+    });
+
+    return res.status(200).json(
+        new ApiResponse(200, clientAnalytics, "Client risk scoring analytics fetched successfully")
+    );
+});
+
 export {
     createInvoice,
     getInvoices,
@@ -524,5 +610,6 @@ export {
     updateInvoiceStatus,
     getDashboardStats,
     uploadPaymentProof,
-    getReceivedInvoices
+    getReceivedInvoices,
+    getClientRiskAnalytics
 };

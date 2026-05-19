@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { z } from "zod";
 import {
   Bell,
   Lock,
@@ -18,7 +18,12 @@ import { BillingSection } from "@/components/settings/BillingSection";
 import { GstSettingsSection } from "@/components/settings/GstSettingsSection";
 import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
 
+const settingsSearchSchema = z.object({
+  tab: z.string().optional(),
+});
+
 export const Route = createFileRoute("/settings")({
+  validateSearch: settingsSearchSchema,
   head: () => ({
     meta: [
       { title: "Settings — Pay Tracker" },
@@ -39,7 +44,13 @@ const sections = [
 ];
 
 function SettingsPage() {
-  const [active, setActive] = useState("notifications");
+  const { tab } = useSearch({ from: "/settings" });
+  const navigate = useNavigate({ from: "/settings" });
+  const active = tab || "notifications";
+
+  const setActive = (id: string) => {
+    navigate({ search: { tab: id } });
+  };
 
   return (
     <AppShell>
@@ -53,7 +64,7 @@ function SettingsPage() {
 
         <div className="grid lg:grid-cols-[220px_1fr] gap-6">
           {/* Side nav */}
-          <aside className="rounded-2xl border border-border bg-card p-2 shadow-card h-fit sticky top-20">
+          <aside className="hidden lg:flex rounded-2xl border border-border bg-card p-2 shadow-card h-fit lg:sticky lg:top-20 flex-col gap-1 lg:gap-0 scrollbar-none shrink-0">
             {sections.map((s) => {
               const Icon = s.icon;
               const isActive = active === s.id;
@@ -62,7 +73,7 @@ function SettingsPage() {
                 <button
                   key={s.id}
                   onClick={() => setActive(s.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all whitespace-nowrap lg:w-full shrink-0 ${
                     isActive
                       ? danger
                         ? "bg-destructive-soft text-destructive"

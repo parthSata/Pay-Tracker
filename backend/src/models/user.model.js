@@ -54,6 +54,16 @@ const userSchema = new Schema(
         },
         emailVerificationToken: {
             type: String,
+        },
+        isTwoFactorEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        twoFactorSecret: {
+            type: String,
+        },
+        twoFactorBackupCodes: {
+            type: [String],
         }
     },
     {

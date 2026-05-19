@@ -14,6 +14,12 @@ import {
   User,
   LogOut,
   Eye,
+  Lock,
+  Palette,
+  Globe,
+  Shield,
+  Trash2,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -38,6 +44,7 @@ const nav = [
   { to: "/", labelKey: "nav_dashboard", icon: LayoutDashboard },
   { to: "/invoices", labelKey: "nav_invoices", icon: FileText },
   { to: "/invoices/received", labelKey: "nav_received", icon: CreditCard },
+  { to: "/clients", labelKey: "nav_clients", icon: Users },
   { to: "/invoices/new", labelKey: "nav_create", icon: PlusCircle },
   { to: "/search", labelKey: "nav_search", icon: Search },
 ];
@@ -253,11 +260,51 @@ export function AppShell({
 
               <Link
                 to="/settings"
-                className="h-9 w-9 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-accent transition-colors shadow-card"
+                className="hidden lg:flex h-9 w-9 rounded-xl border border-border bg-card items-center justify-center hover:bg-accent transition-colors shadow-card"
                 aria-label="Settings"
               >
                 <Settings className="h-4 w-4" />
               </Link>
+
+              {/* Mobile Settings Dropdown */}
+              <div className="lg:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="h-9 w-9 rounded-xl border border-border bg-card flex items-center justify-center hover:bg-accent transition-colors shadow-card cursor-pointer"
+                      aria-label="Settings Menu"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-pop">
+                    <DropdownMenuLabel>Settings Sections</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate({ to: "/settings", search: { tab: "notifications" } })} className="cursor-pointer">
+                      <Bell className="h-4 w-4 mr-2 text-muted-foreground" /> Notifications
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate({ to: "/settings", search: { tab: "security" } })} className="cursor-pointer">
+                      <Lock className="h-4 w-4 mr-2 text-muted-foreground" /> Security
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate({ to: "/settings", search: { tab: "appearance" } })} className="cursor-pointer">
+                      <Palette className="h-4 w-4 mr-2 text-muted-foreground" /> Appearance
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate({ to: "/settings", search: { tab: "regional" } })} className="cursor-pointer">
+                      <Globe className="h-4 w-4 mr-2 text-muted-foreground" /> Regional
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate({ to: "/settings", search: { tab: "billing" } })} className="cursor-pointer">
+                      <CreditCard className="h-4 w-4 mr-2 text-muted-foreground" /> Billing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate({ to: "/settings", search: { tab: "gst" } })} className="cursor-pointer">
+                      <Shield className="h-4 w-4 mr-2 text-muted-foreground" /> GST Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate({ to: "/settings", search: { tab: "danger" } })} className="text-destructive focus:text-destructive cursor-pointer">
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -309,7 +356,7 @@ export function AppShell({
 
         {!isMinimal && (
           <nav
-            className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-border grid grid-cols-5 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+            className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-border grid grid-cols-6 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
             aria-label="Primary"
           >
             {nav.map((item) => {

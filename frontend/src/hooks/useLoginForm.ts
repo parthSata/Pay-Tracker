@@ -15,10 +15,13 @@ export const loginSchema = z.object({
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function useLoginForm() {
-  const { login, logout } = useAuth();
+  const { login, logout, verify2FA } = useAuth();
   const navigate = useNavigate();
   const [showResend, setShowResend] = useState(false);
   const [resending, setResending] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [otpToken, setOtpToken] = useState("");
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -31,7 +34,13 @@ export function useLoginForm() {
   async function onSubmit(data: LoginFormValues) {
     setShowResend(false);
     try {
-      const userData = await login(data.email, data.password);
+      const userData: any = await login(data.email, data.password);
+      if (userData?.requires2FA) {
+        setRequires2FA(true);
+        setTempToken(userData.tempToken);
+        toast.info("Two-factor authentication required.");
+        return;
+      }
       if (userData && userData.role === "ADMIN") {
         toast.error("Admins must login through the admin portal.");
         logout();
@@ -63,11 +72,35 @@ export function useLoginForm() {
     }
   };
 
+  const onVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpToken || otpToken.length !== 6) {
+      toast.error("Please enter a valid 6-digit code");
+      return;
+    }
+    try {
+      const userData = await verify2FA(tempToken, otpToken);
+      if (userData && userData.role === "ADMIN") {
+        toast.error("Admins must login through the admin portal.");
+        logout();
+        navigate({ to: "/admin/login" });
+      } else {
+        await navigate({ to: "/" });
+      }
+    } catch (error: any) {
+      // toast error handled in hook
+    }
+  };
+
   return {
     form,
     onSubmit,
     showResend,
     resending,
-    handleResend
+    handleResend,
+    requires2FA,
+    otpToken,
+    setOtpToken,
+    onVerify2FA
   };
 }

@@ -1,11 +1,14 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
+import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 import { Invoice } from "../models/invoice.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import emailValidator from "deep-email-validator";
 import crypto from "crypto";
 import { sendEmail } from "../utils/sendEmail.js";
+import speakeasy from "speakeasy";
+import qrcode from "qrcode";
 
 const generateAccessAndRefereshTokens = async(userId) =>{
     try {
@@ -148,6 +151,18 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Please verify your email before logging in. Check your inbox!")
     }
 
+    if (user.isTwoFactorEnabled) {
+        // Send a temporary token for the second step instead of logging them in
+        const tempToken = jwt.sign(
+            { _id: user._id, email: user.email },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: "5m" }
+        );
+        return res.status(200).json(
+            new ApiResponse(200, { requires2FA: true, tempToken }, "2FA required")
+        );
+    }
+
     const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
@@ -242,6 +257,29 @@ const updateGstSettings = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, user, "GST settings updated successfully"))
+})
+
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+        throw new ApiError(400, "Old password and new password are required");
+    }
+
+    const user = await User.findById(req.user?._id);
+
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "Invalid old password");
+    }
+
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Password changed successfully"));
 })
 
 const resendVerificationEmail = asyncHandler(async (req, res) => {
@@ -341,6 +379,111 @@ const deleteAccount = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "Account deleted successfully"));
 });
 
+const generate2FA = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+    const secret = speakeasy.generateSecret({ name: `Pay-Tracker (${user.email})` });
+
+    user.twoFactorSecret = secret.base32;
+    await user.save({ validateBeforeSave: false });
+
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+
+    return res.status(200).json(
+        new ApiResponse(200, { qrCodeUrl }, "2FA QR code generated")
+    );
+});
+
+const enable2FA = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, "Token is required");
+
+    const user = await User.findById(req.user._id);
+    if (!user.twoFactorSecret) throw new ApiError(400, "2FA is not generated yet");
+
+    const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 1
+    });
+    if (!isValid) throw new ApiError(400, "Invalid 2FA code");
+
+    user.isTwoFactorEnabled = true;
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "2FA enabled successfully")
+    );
+});
+
+const disable2FA = asyncHandler(async (req, res) => {
+    const { token, password } = req.body;
+    if (!token || !password) throw new ApiError(400, "Token and password are required");
+
+    const user = await User.findById(req.user._id);
+    const isPasswordValid = await user.isPasswordCorrect(password);
+    if (!isPasswordValid) throw new ApiError(401, "Invalid password");
+
+    const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 1
+    });
+    if (!isValid) throw new ApiError(400, "Invalid 2FA code");
+
+    user.isTwoFactorEnabled = false;
+    user.twoFactorSecret = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "2FA disabled successfully")
+    );
+});
+
+const verify2FALogin = asyncHandler(async (req, res) => {
+    const { tempToken, token } = req.body;
+    if (!tempToken || !token) throw new ApiError(400, "Temp token and 2FA code are required");
+
+    let decoded;
+    try {
+        decoded = jwt.verify(tempToken, process.env.ACCESS_TOKEN_SECRET);
+    } catch (err) {
+        throw new ApiError(401, "Invalid or expired temporary token");
+    }
+
+    const user = await User.findById(decoded._id);
+    if (!user) throw new ApiError(404, "User not found");
+
+    const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 1
+    });
+    if (!isValid) throw new ApiError(400, "Invalid 2FA code");
+
+    const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id);
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    };
+
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new ApiResponse(
+                200, 
+                { user: loggedInUser, accessToken, refreshToken },
+                "User logged in successfully with 2FA"
+            )
+        );
+});
+
 export {
     registerUser,
     loginUser,
@@ -350,5 +493,10 @@ export {
     checkEmailExists,
     verifyEmail,
     resendVerificationEmail,
-    deleteAccount
+    deleteAccount,
+    generate2FA,
+    enable2FA,
+    disable2FA,
+    verify2FALogin,
+    changeCurrentPassword
 }

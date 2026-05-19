@@ -15,12 +15,14 @@ export interface User {
   gstNumber?: string;
   defaultGstRate?: number;
   businessState?: string;
+  isTwoFactorEnabled?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string) => Promise<User | { requires2FA: true, tempToken: string }>;
+  verify2FA: (tempToken: string, token: string) => Promise<User>;
   register: (data: any) => Promise<void>;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -60,6 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const response = await axios.post(`${API_URL}/users/login`, { email, password });
+      
+      if (response.data.data.requires2FA) {
+        return {
+          requires2FA: true,
+          tempToken: response.data.data.tempToken
+        };
+      }
+
       const { user: userData, accessToken } = response.data.data;
       
       setUser(userData);
@@ -70,6 +80,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return userData;
     } catch (error: any) {
       const message = error.response?.data?.message || "Login failed";
+      toast.error(message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verify2FA = async (tempToken: string, token: string) => {
+    setIsLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/users/login/verify`, { tempToken, token });
+      const { user: userData, accessToken } = response.data.data;
+      
+      setUser(userData);
+      localStorage.setItem("pay_tracker_user", JSON.stringify(userData));
+      localStorage.setItem("pay_tracker_token", accessToken);
+      
+      toast.success("Welcome back!");
+      return userData;
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Invalid 2FA code";
       toast.error(message);
       throw error;
     } finally {
@@ -129,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, isAuthenticated: !!user, login, register, logout, updateUser, isLoading }}>
+    <AuthContext.Provider value={{ user, setUser, isAuthenticated: !!user, login, verify2FA, register, logout, updateUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

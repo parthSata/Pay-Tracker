@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 interface LoginFormProps {
   form: any;
@@ -17,9 +18,44 @@ interface LoginFormProps {
   showResend: boolean;
   resending: boolean;
   handleResend: () => void;
+  requires2FA?: boolean;
+  otpToken?: string;
+  setOtpToken?: (val: string) => void;
+  onVerify2FA?: (e: React.FormEvent) => void;
 }
 
-export function LoginForm({ form, onSubmit, showResend, resending, handleResend }: LoginFormProps) {
+export function LoginForm({ form, onSubmit, showResend, resending, handleResend, requires2FA, otpToken, setOtpToken, onVerify2FA }: LoginFormProps) {
+  if (requires2FA) {
+    return (
+      <Card className="w-full max-w-md shadow-lg animate-in fade-in zoom-in-95 duration-300">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Two-Factor Authentication</CardTitle>
+          <CardDescription className="text-center">
+            Open your authenticator app and enter the 6-digit code.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onVerify2FA} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Authenticator Code</Label>
+              <Input 
+                autoFocus
+                placeholder="123456" 
+                maxLength={6}
+                value={otpToken}
+                onChange={(e) => setOtpToken?.(e.target.value.replace(/[^0-9]/g, ''))}
+                className="text-center tracking-widest text-lg font-mono"
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Verify
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1">

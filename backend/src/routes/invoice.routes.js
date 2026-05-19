@@ -7,7 +7,8 @@ import {
     updateInvoiceStatus,
     getDashboardStats,
     uploadPaymentProof,
-    getReceivedInvoices
+    getReceivedInvoices,
+    getClientRiskAnalytics
 } from "../controllers/invoice.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -20,6 +21,7 @@ router.route("/search").get(searchInvoice);
 // Protected Routes (Require Auth)
 router.route("/stats").get(verifyJWT, getDashboardStats);
 router.route("/received").get(verifyJWT, getReceivedInvoices);
+router.route("/client-risk").get(verifyJWT, getClientRiskAnalytics);
 router.route("/").post(verifyJWT, createInvoice).get(verifyJWT, getInvoices);
 
 // Public dynamic routes

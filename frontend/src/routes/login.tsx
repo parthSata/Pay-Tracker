@@ -7,7 +7,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginComponent() {
-  const { form, onSubmit, showResend, resending, handleResend } = useLoginForm();
+  const { form, onSubmit, showResend, resending, handleResend, requires2FA, otpToken, setOtpToken, onVerify2FA } = useLoginForm();
 
   return (
     <div className="min-h-screen bg-background">
@@ -20,7 +20,17 @@ function LoginComponent() {
         </Link>
       </header>
       <div className="flex min-h-[calc(100vh-64px)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <LoginForm form={form} onSubmit={onSubmit} showResend={showResend} resending={resending} handleResend={handleResend} />
+        <LoginForm 
+          form={form} 
+          onSubmit={onSubmit} 
+          showResend={showResend} 
+          resending={resending} 
+          handleResend={handleResend}
+          requires2FA={requires2FA}
+          otpToken={otpToken}
+          setOtpToken={setOtpToken}
+          onVerify2FA={onVerify2FA}
+        />
     </div>
   </div>
   );
