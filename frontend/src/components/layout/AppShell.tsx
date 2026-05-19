@@ -32,13 +32,14 @@ import {
 import { useAuth } from "../../auth";
 import { useNotifications } from "../../context/NotificationContext";
 import { isNavActive } from "@/lib/navActive";
+import { useTranslation } from "react-i18next";
 
 const nav = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/invoices", label: "Invoices", icon: FileText },
-  { to: "/invoices/received", label: "Received", icon: CreditCard },
-  { to: "/invoices/new", label: "Create", icon: PlusCircle },
-  { to: "/search", label: "Search", icon: Search },
+  { to: "/", labelKey: "nav_dashboard", icon: LayoutDashboard },
+  { to: "/invoices", labelKey: "nav_invoices", icon: FileText },
+  { to: "/invoices/received", labelKey: "nav_received", icon: CreditCard },
+  { to: "/invoices/new", labelKey: "nav_create", icon: PlusCircle },
+  { to: "/search", labelKey: "nav_search", icon: Search },
 ];
 
 export type AppShellVariant = "app" | "minimal";
@@ -50,6 +51,7 @@ export function AppShell({
   children: ReactNode;
   variant?: AppShellVariant;
 }) {
+  const { t } = useTranslation();
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -77,8 +79,8 @@ export function AppShell({
               <img src="/PayTracker-Logo.png" alt="Pay Tracker Logo" className="h-full w-full object-cover" />
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight">Pay Tracker</span>
-              <span className="text-[11px] text-muted-foreground">Invoice & Cashflow</span>
+              <span className="text-sm font-semibold tracking-tight">{t('shell_app_name')}</span>
+              <span className="text-[11px] text-muted-foreground">{t('shell_app_subtitle')}</span>
             </div>
           </div>
 
@@ -96,7 +98,7 @@ export function AppShell({
                     }`}
                 >
                   <Icon className="h-4 w-4" />
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium">{t(item.labelKey)}</span>
                 </Link>
               );
             })}
@@ -109,7 +111,7 @@ export function AppShell({
                   }`}
               >
                 <Sparkles className="h-4 w-4" />
-                <span className="font-medium">Admin Panel</span>
+                <span className="font-medium">{t('shell_admin_panel')}</span>
               </Link>
             )}
           </nav>
@@ -117,10 +119,10 @@ export function AppShell({
           <div className="m-3 rounded-2xl border border-border p-4 bg-card shadow-card">
             <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              Live payments
+              {t('shell_live_payments')}
             </div>
             <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
-              UPI & Razorpay enabled. Get paid in seconds.
+              {t('shell_live_payments_desc')}
             </p>
           </div>
         </aside>
@@ -136,12 +138,12 @@ export function AppShell({
               <img src="/PayTracker-Logo.png" alt="Pay Tracker Logo" className="h-full w-full object-cover" />
             </div>
             {isMinimal ? (
-              <span className="text-sm font-semibold tracking-tight truncate">Pay Tracker</span>
+              <span className="text-sm font-semibold tracking-tight truncate">{t('shell_app_name')}</span>
             ) : (
               <div className="hidden md:flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 w-80 max-w-[min(20rem,calc(100vw-12rem))] shadow-card">
                 <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                 <input
-                  placeholder="Search invoices, clients..."
+                  placeholder={t('shell_search_placeholder')}
                   className="bg-transparent outline-none text-sm flex-1 min-w-0 placeholder:text-muted-foreground"
                 />
                 <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5 shrink-0">
@@ -156,7 +158,7 @@ export function AppShell({
               to="/login"
               className="text-sm font-medium text-primary hover:underline shrink-0"
             >
-              Sign in
+              {t('shell_sign_in')}
             </Link>
           ) : (
             <div className="flex items-center gap-2 shrink-0">
@@ -180,14 +182,14 @@ export function AppShell({
                 >
                   <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                     <div>
-                      <div className="text-sm font-semibold">Notifications</div>
-                      <div className="text-[11px] text-muted-foreground">{unreadCount} unread</div>
+                      <div className="text-sm font-semibold">{t('shell_notifications')}</div>
+                      <div className="text-[11px] text-muted-foreground">{unreadCount} {t('shell_unread')}</div>
                     </div>
                     <button
                       onClick={handleMarkAllRead}
                       className="text-xs font-medium text-primary hover:underline"
                     >
-                      Mark all read
+                      {t('shell_mark_all_read')}
                     </button>
                   </div>
                   <div className="max-h-[min(380px,50dvh)] overflow-y-auto">
@@ -243,7 +245,7 @@ export function AppShell({
                   </div>
                   <div className="px-4 py-3 border-t border-border bg-muted/30">
                     <Link to="/settings" className="text-xs font-medium text-primary hover:underline">
-                      Notification settings →
+                      {t('shell_notification_settings')}
                     </Link>
                   </div>
                 </PopoverContent>
@@ -277,12 +279,12 @@ export function AppShell({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link to="/profile" className="cursor-pointer">
-                      <User className="h-4 w-4 mr-2" /> Profile
+                      <User className="h-4 w-4 mr-2" /> {t('shell_profile')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/settings" className="cursor-pointer">
-                      <Settings className="h-4 w-4 mr-2" /> Settings
+                      <Settings className="h-4 w-4 mr-2" /> {t('shell_settings')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -290,7 +292,7 @@ export function AppShell({
                     onClick={handleLogout}
                     className="text-destructive focus:text-destructive cursor-pointer"
                   >
-                    <LogOut className="h-4 w-4 mr-2" /> Sign out
+                    <LogOut className="h-4 w-4 mr-2" /> {t('shell_sign_out')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -324,7 +326,7 @@ export function AppShell({
                 >
                   <Icon className={`h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300 ${active ? "scale-110" : ""}`} />
                   <span className="text-[9px] sm:text-[10px] uppercase tracking-tight leading-tight text-center px-0.5 line-clamp-2 wrap-break-word max-w-full">
-                    {item.label}
+                    {t(item.labelKey)}
                   </span>
                 </Link>
               );

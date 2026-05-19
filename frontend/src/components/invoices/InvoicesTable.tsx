@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Loader2, ArrowUpDown } from "lucide-react";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatINR, type InvoiceStatus } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface InvoicesTableProps {
   rows: any[];
@@ -9,20 +10,21 @@ interface InvoicesTableProps {
 }
 
 export function InvoicesTable({ rows, isLoading }: InvoicesTableProps) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl bg-card border border-border shadow-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-muted/60 backdrop-blur z-10">
             <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="px-5 py-3 font-medium">Invoice</th>
-              <th className="px-5 py-3 font-medium">Client</th>
+              <th className="px-5 py-3 font-medium">{t('inv_invoice')}</th>
+              <th className="px-5 py-3 font-medium">{t('inv_client')}</th>
               <th className="px-5 py-3 font-medium">
-                <span className="inline-flex items-center gap-1">Amount <ArrowUpDown className="h-3 w-3" /></span>
+                <span className="inline-flex items-center gap-1">{t('inv_amount')} <ArrowUpDown className="h-3 w-3" /></span>
               </th>
-              <th className="px-5 py-3 font-medium">Due date</th>
-              <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium text-right">Actions</th>
+              <th className="px-5 py-3 font-medium">{t('inv_due_date')}</th>
+              <th className="px-5 py-3 font-medium">{t('inv_status')}</th>
+              <th className="px-5 py-3 font-medium text-right">{t('inv_actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -31,14 +33,14 @@ export function InvoicesTable({ rows, isLoading }: InvoicesTableProps) {
                 <td colSpan={6} className="px-5 py-24 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-8 w-8 animate-spin" />
-                    <p>Loading invoices...</p>
+                    <p>{t('inv_loading')}</p>
                   </div>
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-12 text-center text-sm text-muted-foreground">
-                  No invoices found.
+                  {t('inv_no_found')}
                 </td>
               </tr>
             ) : (
@@ -71,7 +73,7 @@ export function InvoicesTable({ rows, isLoading }: InvoicesTableProps) {
                       params={{ id: inv._id }}
                       className="text-xs font-medium text-primary max-sm:opacity-100 opacity-0 sm:group-hover:opacity-100 transition-opacity"
                     >
-                      View →
+                      {t('inv_view')}
                     </Link>
                   </td>
                 </tr>

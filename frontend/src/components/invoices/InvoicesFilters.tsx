@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface InvoicesFiltersProps {
   filter: string;
@@ -10,6 +11,8 @@ interface InvoicesFiltersProps {
 }
 
 export function InvoicesFilters({ filter, setFilter, q, setQ, filters, counts }: InvoicesFiltersProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {filters.map((f) => (
@@ -22,7 +25,7 @@ export function InvoicesFilters({ filter, setFilter, q, setQ, filters, counts }:
               : "bg-card text-muted-foreground border-border hover:bg-accent"
           }`}
         >
-          <span className="capitalize">{f}</span>
+          <span className="capitalize">{t(`filter_${f}`)}</span>
           <span className={`ml-2 text-[11px] ${filter === f ? "opacity-70" : "text-muted-foreground"}`}>
             {counts[f]}
           </span>
@@ -33,7 +36,7 @@ export function InvoicesFilters({ filter, setFilter, q, setQ, filters, counts }:
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by client or ID"
+          placeholder={t('inv_search_placeholder')}
           className="bg-transparent outline-none text-sm flex-1 placeholder:text-muted-foreground"
         />
       </div>

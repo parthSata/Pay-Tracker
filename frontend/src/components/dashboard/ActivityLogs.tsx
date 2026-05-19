@@ -1,20 +1,22 @@
 import { CheckCircle2, Plus, Upload, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ActivityLogsProps {
   logs: any[];
 }
 
 export function ActivityLogs({ logs }: ActivityLogsProps) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl bg-card border border-border shadow-card overflow-hidden animate-fade-up" style={{ animationDelay: "440ms" }}>
       <div className="p-5 border-b border-border">
-        <h2 className="text-base font-semibold">Activity logs</h2>
-        <p className="text-xs text-muted-foreground">Recent system and payment events</p>
+        <h2 className="text-base font-semibold">{t('dashboard_activity_logs')}</h2>
+        <p className="text-xs text-muted-foreground">{t('dashboard_activity_logs_desc')}</p>
       </div>
       <div className="divide-y divide-border max-h-[300px] overflow-y-auto">
         {logs.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            No activity logs yet.
+            {t('dashboard_no_activity_logs')}
           </div>
         ) : (
           logs.map((log) => (

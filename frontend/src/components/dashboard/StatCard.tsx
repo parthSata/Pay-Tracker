@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { CountUp } from "@/components/shared/CountUp";
 import { formatINR } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface StatCardProps {
   label: string;
@@ -25,12 +26,13 @@ export function StatCard({
   isCurrency = true,
   delay = 0,
 }: StatCardProps) {
+  const { t } = useTranslation();
   const toneStyles = tone
     ? {
-        primary: "bg-primary-soft text-primary",
-        warning: "bg-warning-soft text-warning-foreground",
-        destructive: "bg-destructive-soft text-destructive",
-      }[tone]
+      primary: "bg-primary-soft text-primary",
+      warning: "bg-warning-soft text-warning-foreground",
+      destructive: "bg-destructive-soft text-destructive",
+    }[tone]
     : "";
 
   return (
@@ -59,7 +61,7 @@ export function StatCard({
               {trend}
             </span>
           )}
-          {desc || "vs last month"}
+          {desc || t('stat_vs_last_month')}
         </div>
       )}
     </div>

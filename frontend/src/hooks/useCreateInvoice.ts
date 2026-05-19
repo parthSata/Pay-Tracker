@@ -51,6 +51,11 @@ export function useCreateInvoice() {
       return;
     }
 
+    if (user && email.toLowerCase() === user.email.toLowerCase()) {
+      toast.error("You cannot send an invoice to your own email address");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("pay_tracker_token");

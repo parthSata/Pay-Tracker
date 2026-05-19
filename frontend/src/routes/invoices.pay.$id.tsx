@@ -1,4 +1,5 @@
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ShieldCheck, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,18 @@ export const Route = createFileRoute("/invoices/pay/$id")({
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/invoices/${params.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      return response.data.data;
+      
+      let logs = [];
+      try {
+        const logsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/users/activity?invoiceId=${params.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        logs = logsResponse.data.data;
+      } catch (e) {
+        console.error("Failed to fetch logs:", e);
+      }
+
+      return { invoice: response.data.data, logs };
     } catch (error) {
       throw notFound();
     }
@@ -24,7 +36,9 @@ export const Route = createFileRoute("/invoices/pay/$id")({
 import { useInvoicePay } from "@/hooks/useInvoicePay";
 
 function DashboardPay() {
-  const inv = Route.useLoaderData();
+  const { invoice } = Route.useLoaderData();
+  const router = useRouter();
+  
   const {
     status,
     total,
@@ -32,7 +46,17 @@ function DashboardPay() {
     qrUrl,
     copied,
     copy
-  } = useInvoicePay(inv);
+  } = useInvoicePay(invoice);
+
+  // Poll for real-time payment status updates
+  useEffect(() => {
+    if (status !== "PAID") {
+      const interval = setInterval(() => {
+        router.invalidate();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [status, router]);
 
   return (
     <AppShell>
@@ -52,7 +76,7 @@ function DashboardPay() {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           <div className="lg:col-span-3 space-y-6">
-            <InvoiceDetails inv={inv} upiId={upiId} total={total} />
+            <InvoiceDetails inv={invoice} upiId={upiId} total={total} />
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-4">
               <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <ShieldCheck className="h-5 w-5" />
@@ -63,7 +87,7 @@ function DashboardPay() {
               </div>
             </div>
           </div>
-          <PaymentSection status={status} qrUrl={qrUrl} copy={copy} copied={copied} upiId={upiId} inv={inv} />
+          <PaymentSection status={status} qrUrl={qrUrl} copy={copy} copied={copied} upiId={upiId} inv={invoice} />
         </div>
       </div>
     </AppShell>

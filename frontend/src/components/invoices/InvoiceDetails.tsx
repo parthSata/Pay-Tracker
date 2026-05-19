@@ -7,6 +7,8 @@ interface InvoiceDetailsProps {
 }
 
 export function InvoiceDetails({ inv, upiId, total }: InvoiceDetailsProps) {
+
+
   return (
     <div className="rounded-3xl bg-card border border-border shadow-card p-6 lg:p-8">
       <div className="flex items-start justify-between mb-8">

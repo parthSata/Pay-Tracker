@@ -11,6 +11,7 @@ import { Notification } from "../models/notification.model.js";
 import emailValidator from "deep-email-validator";
 
 import Razorpay from "razorpay";
+import { ActivityLog } from "../models/activityLog.model.js";
 
 let razorpay;
 const getRazorpayInstance = () => {
@@ -44,6 +45,10 @@ const createInvoice = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) {
         throw new ApiError(404, "User not found");
+    }
+
+    if (clientEmail.toLowerCase() === user.email.toLowerCase()) {
+        throw new ApiError(400, "You cannot send an invoice to your own email address");
     }
 
     // Verify if the client email actually exists (MX records and Syntax)
@@ -259,6 +264,13 @@ const getInvoices = asyncHandler(async (req, res) => {
                         invoices[i].status = "PAID";
                         invoices[i].paidAt = new Date();
                         await invoices[i].save();
+                        
+                        await ActivityLog.create({
+                            userId: invoices[i].userId,
+                            invoiceId: invoices[i]._id,
+                            action: "PAYMENT_RECEIVED",
+                            details: `Payment received via Razorpay for ${invoices[i].invoiceNumber}`
+                        });
                     }
                 } catch (error) {
                     console.error(`Failed to fetch status for ${invoices[i].invoiceNumber}:`, error);
@@ -293,6 +305,13 @@ const getInvoiceById = asyncHandler(async (req, res) => {
                     invoice.status = "PAID";
                     invoice.paidAt = new Date();
                     await invoice.save();
+                    
+                    await ActivityLog.create({
+                        userId: invoice.userId._id,
+                        invoiceId: invoice._id,
+                        action: "PAYMENT_RECEIVED",
+                        details: `Payment received via Razorpay for ${invoice.invoiceNumber}`
+                    });
                 }
             } catch (error) {
                 console.error(`Failed to fetch status for ${invoice.invoiceNumber}:`, error);
