@@ -96,6 +96,9 @@ const invoiceSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        lastReminderSentAt: {
+            type: Date,
+        },
         history: [
             {
                 action: { type: String, required: true },

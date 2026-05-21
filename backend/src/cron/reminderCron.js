@@ -4,6 +4,7 @@ import { sendEmail } from "../utils/sendEmail.js";
 import { formatINR } from "../utils/formatINR.js";
 import Razorpay from "razorpay";
 import { User } from "../models/user.model.js";
+import { Notification } from "../models/notification.model.js";
 
 // Razorpay Instance Helper
 let razorpay;
@@ -98,6 +99,19 @@ export const initCronJobs = () => {
                             inv.status = "PAID";
                             inv.paidAt = new Date();
                             await inv.save();
+
+                            try {
+                                await Notification.create({
+                                    userId: inv.userId._id,
+                                    title: "Payment Received",
+                                    description: `Payment of ₹${inv.totalAmount || inv.amount} received via Razorpay for invoice ${inv.invoiceNumber}.`,
+                                    type: "success",
+                                    category: "payment"
+                                });
+                            } catch (err) {
+                                console.error("[CRON] Failed to create Razorpay payment notification:", err.message);
+                            }
+
                             continue; // Skip reminder if paid
                         }
                     } catch (err) {
@@ -115,6 +129,21 @@ export const initCronJobs = () => {
                     if (sent) {
                         inv.reminderSent1DayBefore = true;
                         await inv.save();
+
+                        try {
+                            const clientUser = await User.findOne({ email: inv.clientEmail.toLowerCase().trim() });
+                            if (clientUser) {
+                                await Notification.create({
+                                    userId: clientUser._id,
+                                    title: "Invoice Due Tomorrow",
+                                    description: `Invoice ${inv.invoiceNumber} from ${inv.userId.businessName || inv.userId.name} is due tomorrow.`,
+                                    type: "info",
+                                    category: "overdue"
+                                });
+                            }
+                        } catch (err) {
+                            console.error("[CRON] Failed to create upcoming notification for client:", err.message);
+                        }
                     }
                 }
 
@@ -126,6 +155,21 @@ export const initCronJobs = () => {
                         inv.reminderSentOnDueDate = true;
                         if (inv.status === "PENDING") inv.status = "OVERDUE";
                         await inv.save();
+
+                        try {
+                            const clientUser = await User.findOne({ email: inv.clientEmail.toLowerCase().trim() });
+                            if (clientUser) {
+                                await Notification.create({
+                                    userId: clientUser._id,
+                                    title: "Invoice Due Today",
+                                    description: `Invoice ${inv.invoiceNumber} from ${inv.userId.businessName || inv.userId.name} is due today.`,
+                                    type: "warning",
+                                    category: "overdue"
+                                });
+                            }
+                        } catch (err) {
+                            console.error("[CRON] Failed to create due today notification for client:", err.message);
+                        }
                     }
                 }
 
@@ -133,6 +177,35 @@ export const initCronJobs = () => {
                 if (invDueDate.getTime() < today.getTime() && inv.status === "PENDING") {
                     inv.status = "OVERDUE";
                     await inv.save();
+
+                    // Create Notification for merchant
+                    try {
+                        await Notification.create({
+                            userId: inv.userId._id,
+                            title: "Invoice Overdue",
+                            description: `Invoice ${inv.invoiceNumber} for ${inv.clientName} is now overdue.`,
+                            type: "warning",
+                            category: "overdue"
+                        });
+                    } catch (err) {
+                        console.error("[CRON] Failed to create overdue notification for merchant:", err.message);
+                    }
+
+                    // Create Notification for client if registered
+                    try {
+                        const clientUser = await User.findOne({ email: inv.clientEmail.toLowerCase().trim() });
+                        if (clientUser) {
+                            await Notification.create({
+                                userId: clientUser._id,
+                                title: "Invoice Overdue Alert",
+                                description: `Invoice ${inv.invoiceNumber} from ${inv.userId.businessName || inv.userId.name} is now overdue.`,
+                                type: "warning",
+                                category: "overdue"
+                            });
+                        }
+                    } catch (err) {
+                        console.error("[CRON] Failed to create overdue notification for client:", err.message);
+                    }
                 }
             }
 

@@ -6,6 +6,7 @@ import { formatINR } from "@/lib/utils";
 
 export function useDashboard() {
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [receivedInvoices, setReceivedInvoices] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,10 +23,11 @@ export function useDashboard() {
     const emptyStats = { totalRevenue: 0, pending: 0, overdue: 0, cashflow: [] };
 
     try {
-      const [invResult, statsResult, logsResult] = await Promise.allSettled([
+      const [invResult, statsResult, logsResult, recResult] = await Promise.allSettled([
         axios.get(`${import.meta.env.VITE_API_URL}/invoices`, { headers }),
         axios.get(`${import.meta.env.VITE_API_URL}/invoices/stats`, { headers }),
         axios.get(`${import.meta.env.VITE_API_URL}/users/activity`, { headers }),
+        axios.get(`${import.meta.env.VITE_API_URL}/invoices/received`, { headers }),
       ]);
 
       if (invResult.status === "fulfilled") {
@@ -63,6 +65,13 @@ export function useDashboard() {
         setLogs(Array.isArray(raw) ? raw : []);
       } else {
         setLogs([]);
+      }
+
+      if (recResult.status === "fulfilled") {
+        const raw = recResult.value.data?.data;
+        setReceivedInvoices(Array.isArray(raw) ? raw : []);
+      } else {
+        setReceivedInvoices([]);
       }
 
       const criticalFailed = invResult.status === "rejected" || statsResult.status === "rejected";
@@ -130,6 +139,7 @@ export function useDashboard() {
 
   return {
     invoices,
+    receivedInvoices,
     logs,
     isLoading,
     totalRevenue,

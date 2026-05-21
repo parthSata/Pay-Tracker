@@ -1,6 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Plus, Loader2 } from "lucide-react";
 import { DashboardSummary } from "@/components/dashboard/DashboardSummary";
+import { DailyCashPosition } from "@/components/dashboard/DailyCashPosition";
 import { CashflowChart } from "@/components/dashboard/CashflowChart";
 import { ExpectedRevenue } from "@/components/dashboard/ExpectedRevenue";
 import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
@@ -32,6 +33,7 @@ function Dashboard() {
   const { user } = useAuth();
   const {
     invoices,
+    receivedInvoices,
     logs,
     isLoading,
     totalRevenue,
@@ -69,6 +71,8 @@ function Dashboard() {
         ) : (
           <>
             <DashboardSummary totalRevenue={totalRevenue} pending={pending} overdue={overdue} />
+
+            <DailyCashPosition invoices={invoices} receivedInvoices={receivedInvoices} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0">
               <CashflowChart data={dynamicCashflow} />

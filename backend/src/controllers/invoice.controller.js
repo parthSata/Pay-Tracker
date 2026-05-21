@@ -271,6 +271,18 @@ const getInvoices = asyncHandler(async (req, res) => {
                             action: "PAYMENT_RECEIVED",
                             details: `Payment received via Razorpay for ${invoices[i].invoiceNumber}`
                         });
+
+                        try {
+                            await Notification.create({
+                                userId: invoices[i].userId,
+                                title: "Payment Received",
+                                description: `Payment of ₹${invoices[i].totalAmount || invoices[i].amount} received via Razorpay for invoice ${invoices[i].invoiceNumber}.`,
+                                type: "success",
+                                category: "payment"
+                            });
+                        } catch (err) {
+                            console.error("Failed to create Razorpay payment notification:", err.message);
+                        }
                     }
                 } catch (error) {
                     console.error(`Failed to fetch status for ${invoices[i].invoiceNumber}:`, error);
@@ -312,6 +324,18 @@ const getInvoiceById = asyncHandler(async (req, res) => {
                         action: "PAYMENT_RECEIVED",
                         details: `Payment received via Razorpay for ${invoice.invoiceNumber}`
                     });
+
+                    try {
+                        await Notification.create({
+                            userId: invoice.userId._id,
+                            title: "Payment Received",
+                            description: `Payment of ₹${invoice.totalAmount || invoice.amount} received via Razorpay for invoice ${invoice.invoiceNumber}.`,
+                            type: "success",
+                            category: "payment"
+                        });
+                    } catch (err) {
+                        console.error("Failed to create Razorpay payment notification in getInvoiceById:", err.message);
+                    }
                 }
             } catch (error) {
                 console.error(`Failed to fetch status for ${invoice.invoiceNumber}:`, error);
@@ -324,14 +348,34 @@ const getInvoiceById = asyncHandler(async (req, res) => {
     invoiceData.sme = invoiceData.userId;
     delete invoiceData.userId;
 
-    // Log viewed event if not already viewed in this session (simplified)
+    // Log viewed event if not already viewed in the last 24 hours (prevents duplicates)
     // We only log if it's not the owner
     if (!req.user || req.user._id.toString() !== invoice.userId._id.toString()) {
-        invoice.history.push({
-            action: "VIEWED",
-            details: `Invoice viewed by ${req.user ? req.user.name : "Public User"}`
-        });
-        await invoice.save();
+        const lastViewEvent = invoice.history
+            .filter(h => h.action === "VIEWED")
+            .sort((a, b) => b.timestamp - a.timestamp)[0];
+            
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        
+        if (!lastViewEvent || lastViewEvent.timestamp < oneDayAgo) {
+            invoice.history.push({
+                action: "VIEWED",
+                details: `Invoice viewed by ${req.user ? req.user.name : "Public User"}`
+            });
+            await invoice.save();
+
+            try {
+                await Notification.create({
+                    userId: invoice.userId._id,
+                    title: "Invoice Viewed",
+                    description: `Invoice ${invoice.invoiceNumber} was viewed by ${req.user ? req.user.name : "the client"}.`,
+                    type: "info",
+                    category: "viewed"
+                });
+            } catch (e) {
+                console.error("Failed to create viewed notification:", e.message);
+            }
+        }
     }
 
     return res.status(200).json(
@@ -410,6 +454,32 @@ const updateInvoiceStatus = asyncHandler(async (req, res) => {
         details: `Invoice marked as ${status.toLowerCase()}`
     });
     await invoice.save();
+
+    if (status === "PAID") {
+        try {
+            await Notification.create({
+                userId: invoice.userId,
+                title: "Payment Received",
+                description: `Invoice ${invoice.invoiceNumber} has been marked as PAID.`,
+                type: "success",
+                category: "payment"
+            });
+        } catch (err) {
+            console.error("Failed to create manual payment notification:", err.message);
+        }
+    } else if (status === "OVERDUE") {
+        try {
+            await Notification.create({
+                userId: invoice.userId,
+                title: "Invoice Overdue",
+                description: `Invoice ${invoice.invoiceNumber} has been marked as OVERDUE.`,
+                type: "warning",
+                category: "overdue"
+            });
+        } catch (err) {
+            console.error("Failed to create status update overdue notification:", err.message);
+        }
+    }
 
     return res.status(200).json(
         new ApiResponse(200, invoice, `Invoice marked as ${status.toLowerCase()}`)
@@ -500,6 +570,18 @@ const uploadPaymentProof = asyncHandler(async (req, res) => {
         action: "PAYMENT_PROOF_UPLOADED",
         details: "Client uploaded payment proof screenshot"
     });
+
+    try {
+        await Notification.create({
+            userId: invoice.userId,
+            title: "Payment Proof Uploaded",
+            description: `Client uploaded payment proof for invoice ${invoice.invoiceNumber}.`,
+            type: "info",
+            category: "payment"
+        });
+    } catch (err) {
+        console.error("Failed to create payment proof notification:", err.message);
+    }
 
     return res.status(200).json(
         new ApiResponse(200, { url: uploadResult.secure_url }, "Payment proof uploaded successfully")
@@ -602,6 +684,119 @@ const getClientRiskAnalytics = asyncHandler(async (req, res) => {
     );
 });
 
+const sendManualReminder = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const invoice = await Invoice.findById(id);
+
+    if (!invoice) {
+        throw new ApiError(404, "Invoice not found");
+    }
+
+    if (invoice.lastReminderSentAt) {
+        const lastSent = new Date(invoice.lastReminderSentAt);
+        const today = new Date();
+        if (
+            lastSent.getFullYear() === today.getFullYear() &&
+            lastSent.getMonth() === today.getMonth() &&
+            lastSent.getDate() === today.getDate()
+        ) {
+            throw new ApiError(400, "A reminder has already been sent for this invoice today. You can send another one tomorrow.");
+        }
+    }
+
+    const user = await User.findById(invoice.userId);
+    if (!user) {
+        throw new ApiError(404, "Invoice owner not found");
+    }
+
+    const totalAmount = invoice.totalAmount || (invoice.amount + (invoice.gstAmount || 0));
+    const formattedAmount = `₹${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const dueDate = new Date(invoice.dueDate).toLocaleDateString("en-IN", { day: 'numeric', month: 'long', year: 'numeric' });
+
+    const upiId = user.upiId || "merchant@upi";
+    const upiUri = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(user.businessName || user.name)}&am=${totalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Invoice ${invoice.invoiceNumber}`)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiUri)}`;
+
+    const emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 12px; background-color: #ffffff;">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <h1 style="color: #6366f1; margin: 0; font-size: 24px; font-weight: 800;">Pay Tracker</h1>
+                <p style="color: #6b7280; font-size: 12px; margin-top: 4px;">Smart Invoicing Solution</p>
+            </div>
+            <div style="border-left: 4px solid #6366f1; padding-left: 15px; margin-bottom: 20px;">
+                <h2 style="color: #111827; margin: 0; font-size: 18px;">Payment Reminder</h2>
+                <p style="color: #4b5563; margin-top: 8px; line-height: 1.5;">Hi ${invoice.clientName}, This is a payment reminder for invoice <strong>${invoice.invoiceNumber}</strong>.</p>
+            </div>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">Amount Due</td>
+                        <td style="text-align: right; color: #1e293b; font-size: 20px; font-weight: 700;">${formattedAmount}</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 8px;">Due Date</td>
+                        <td style="text-align: right; color: #1e293b; font-size: 14px; font-weight: 600; padding-top: 8px;">${dueDate}</td>
+                    </tr>
+                </table>
+            </div>
+            <p>Scan the QR code below to pay instantly via any UPI app:</p>
+            <div style="text-align: center; margin: 20px 0;">
+                <img src="${qrUrl}" alt="Payment QR Code" style="border: 1px solid #eee; border-radius: 10px; width: 180px; height: 180px;" />
+            </div>
+            ${invoice.paymentLink ? `
+            <div style="text-align: center; margin: 25px 0;">
+                <a href="${invoice.paymentLink}" style="display: inline-block; background: #6366f1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);">Pay Securely via Razorpay</a>
+            </div>
+            ` : ''}
+            <div style="margin-top: 35px; border-top: 1px solid #f1f5f9; text-align: center; padding-top: 20px;">
+                <p style="font-size: 11px; color: #94a3b8; line-height: 1.6;">
+                    This invoice was sent by <strong>${user.businessName || user.name}</strong>.<br>
+                    For any queries, please contact <a href="mailto:${user.email}" style="color: #6366f1;">${user.email}</a>
+                </p>
+            </div>
+        </div>
+    `;
+
+    await sendEmail(
+        invoice.clientEmail,
+        `Payment Reminder: Invoice ${invoice.invoiceNumber} from ${user.businessName || user.name}`,
+        emailHtml
+    );
+
+    invoice.history.push({
+        action: "REMINDER_SENT",
+        details: "Manual payment reminder sent by user"
+    });
+    invoice.lastReminderSentAt = new Date();
+    await invoice.save();
+
+    await logActivity({
+        userId: user._id,
+        invoiceId: invoice._id,
+        action: "REMINDER_SENT",
+        details: `Manual reminder sent for invoice ${invoice.invoiceNumber}`
+    });
+
+    const clientUser = await User.findOne({ email: invoice.clientEmail.toLowerCase().trim() });
+    if (clientUser) {
+        try {
+            await Notification.create({
+                userId: clientUser._id,
+                title: "Payment Reminder Received",
+                description: `${user.businessName || user.name} sent you a reminder for invoice ${invoice.invoiceNumber} (₹${invoice.totalAmount || invoice.amount}).`,
+                type: "warning",
+                category: "overdue",
+            });
+        } catch (e) {
+            console.error("Optional client notification failed in sendManualReminder:", e.message);
+        }
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, null, "Reminder email sent successfully")
+    );
+});
+
 export {
     createInvoice,
     getInvoices,
@@ -611,5 +806,6 @@ export {
     getDashboardStats,
     uploadPaymentProof,
     getReceivedInvoices,
-    getClientRiskAnalytics
+    getClientRiskAnalytics,
+    sendManualReminder
 };

@@ -8,7 +8,8 @@ import {
     getDashboardStats,
     uploadPaymentProof,
     getReceivedInvoices,
-    getClientRiskAnalytics
+    getClientRiskAnalytics,
+    sendManualReminder
 } from "../controllers/invoice.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -30,5 +31,6 @@ router.route("/:id/status").patch(updateInvoiceStatus);
 
 // Protected dynamic routes
 router.route("/:id/proof").post(upload.single("proof"), uploadPaymentProof);
+router.route("/:id/remind").post(verifyJWT, sendManualReminder);
 
 export default router;
