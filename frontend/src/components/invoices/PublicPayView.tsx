@@ -2,6 +2,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PublicInvoiceCard } from "@/components/invoices/PublicInvoiceCard";
 import { PublicPaymentCard } from "@/components/invoices/PublicPaymentCard";
 import { InvoiceTimeline } from "@/components/invoices/InvoiceTimeline";
+import { PrintInvoiceTemplate } from "@/components/invoices/PrintInvoiceTemplate";
 
 interface PublicPayViewProps {
   user: any;
@@ -56,6 +57,11 @@ export function PublicPayView({
         <p className="text-center text-[11px] text-muted-foreground mt-8">
           Need help? Email <span className="font-medium text-foreground">support@paytracker.com</span>
         </p>
+      </div>
+
+      {/* Hidden print container for capturing white professional A4 layout in PDF */}
+      <div style={{ position: "absolute", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
+        <PrintInvoiceTemplate id="invoice-print-container" invoice={invoice} qrCodeUrl={qrUrl} />
       </div>
     </AppShell>
   );

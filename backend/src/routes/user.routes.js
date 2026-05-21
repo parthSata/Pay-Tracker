@@ -13,10 +13,14 @@ import {
     enable2FA,
     disable2FA,
     verify2FALogin,
-    changeCurrentPassword
+    changeCurrentPassword,
+    uploadLogo,
+    uploadSignature,
+    uploadAvatar
 } from "../controllers/user.controller.js";
 import { getActivityLogs } from "../controllers/activity.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
@@ -33,6 +37,11 @@ router.route("/update-gst").patch(verifyJWT, updateGstSettings);
 router.route("/delete-account").delete(verifyJWT, deleteAccount);
 router.route("/activity").get(verifyJWT, getActivityLogs);
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);
+
+// File uploads
+router.route("/upload-logo").post(verifyJWT, upload.single("logo"), uploadLogo);
+router.route("/upload-signature").post(verifyJWT, upload.single("signature"), uploadSignature);
+router.route("/upload-avatar").post(verifyJWT, upload.single("avatar"), uploadAvatar);
 
 // 2FA Routes
 router.route("/2fa/generate").post(verifyJWT, generate2FA);

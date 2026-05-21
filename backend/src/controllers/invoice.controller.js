@@ -301,7 +301,7 @@ const getInvoiceById = asyncHandler(async (req, res) => {
     
     // For public access, we don't check userId. 
     // We populate the 'userId' field which contains the SME/Merchant info.
-    const invoice = await Invoice.findById(id).populate("userId", "name businessName upiId gstNumber businessState gstEnabled");
+    const invoice = await Invoice.findById(id).populate("userId", "name email businessName upiId gstNumber businessState gstEnabled profilePic logoUrl watermarkEnabled watermarkOpacity brandTemplate brandColor brandTextColor footerText signatureType signatureUrl signatureText signatureFont bankDetails");
 
     if (!invoice) {
         throw new ApiError(404, "Invoice not found");
@@ -393,7 +393,7 @@ const searchInvoice = asyncHandler(async (req, res) => {
     const invoice = await Invoice.findOne({ 
         invoiceNumber: invoiceNumber.toUpperCase(), 
         clientEmail: email.toLowerCase() 
-    }).populate("userId", "businessName name upiId gstNumber businessState gstEnabled");
+    }).populate("userId", "name email businessName upiId gstNumber businessState gstEnabled profilePic logoUrl watermarkEnabled watermarkOpacity brandTemplate brandColor brandTextColor footerText signatureType signatureUrl signatureText signatureFont bankDetails");
 
     if (!invoice) {
         throw new ApiError(404, "Invoice not found or email mismatch");
@@ -590,7 +590,7 @@ const uploadPaymentProof = asyncHandler(async (req, res) => {
 
 const getReceivedInvoices = asyncHandler(async (req, res) => {
     const invoices = await Invoice.find({ clientEmail: req.user.email })
-        .populate("userId", "businessName name upiId gstNumber businessState gstEnabled")
+        .populate("userId", "name email businessName upiId gstNumber businessState gstEnabled profilePic logoUrl watermarkEnabled watermarkOpacity brandTemplate brandColor brandTextColor footerText signatureType signatureUrl signatureText signatureFont bankDetails")
         .sort({ createdAt: -1 });
 
     return res.status(200).json(

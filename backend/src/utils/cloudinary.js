@@ -11,13 +11,14 @@ cloudinary.config({
 });
 
 
-const uploadInCloudinary = async (localFilePath, resourceType = "auto") => {
+const uploadInCloudinary = async (localFilePath, resourceType = "auto", folder = "") => {
   try {
     if (!localFilePath) return null;
 
     // Upload file
     const uploadResult = await cloudinary.uploader.upload(localFilePath, {
       resource_type: resourceType, // "video" or "image" or "auto"
+      folder: folder || undefined,
       // Optional: Generate a thumbnail automatically for videos
       eager: resourceType === "video" ? [{ width: 300, height: 300, crop: "pad", format: "jpg" }] : undefined,
     });

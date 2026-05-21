@@ -9,6 +9,7 @@ export const Route = createFileRoute("/search")({
 });
 
 import { useSearch } from "@/hooks/useSearch";
+import { PrintInvoiceTemplate } from "@/components/invoices/PrintInvoiceTemplate";
 
 function InvoiceSearchPage() {
   const {
@@ -46,15 +47,21 @@ function InvoiceSearchPage() {
         />
 
         {invoice && (
-          <InvoiceSearchResult
-            invoice={invoice}
-            isCreator={isCreator}
-            formatINR={formatINR}
-            downloadPDF={downloadPDF}
-            handleFileUpload={handleFileUpload}
-            isUploading={isUploading}
-            qrCodeUrl={qrCodeUrl}
-          />
+          <>
+            <InvoiceSearchResult
+              invoice={invoice}
+              isCreator={isCreator}
+              formatINR={formatINR}
+              downloadPDF={downloadPDF}
+              handleFileUpload={handleFileUpload}
+              isUploading={isUploading}
+              qrCodeUrl={qrCodeUrl}
+            />
+            {/* Hidden print container for capturing white professional A4 layout in PDF */}
+            <div style={{ position: "absolute", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
+              <PrintInvoiceTemplate id="invoice-print-container" invoice={invoice} qrCodeUrl={qrCodeUrl} />
+            </div>
+          </>
         )}
       </div>
     </AppShell>

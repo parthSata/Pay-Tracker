@@ -23,14 +23,30 @@ function ProfilePage() {
   const {
     user,
     isLoading,
+    isUploading,
+    uploadingState,
     formData,
     handleSave,
-    handleChange
+    handleChange,
+    setVal,
+    setBankDetail,
+    uploadFile
   } = useProfile();
 
   return (
     <AppShell>
-        <ProfileForm user={user} formData={formData} handleChange={handleChange} handleSave={handleSave} isLoading={isLoading} />
+        <ProfileForm 
+          user={user} 
+          formData={formData} 
+          handleChange={handleChange} 
+          handleSave={handleSave} 
+          isLoading={isLoading}
+          isUploading={isUploading}
+          uploadingState={uploadingState}
+          setVal={setVal}
+          setBankDetail={setBankDetail}
+          uploadFile={uploadFile}
+        />
     </AppShell>
   );
 }

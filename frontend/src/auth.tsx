@@ -16,6 +16,25 @@ export interface User {
   defaultGstRate?: number;
   businessState?: string;
   isTwoFactorEnabled?: boolean;
+  profilePic?: string;
+  logoUrl?: string;
+  watermarkEnabled?: boolean;
+  watermarkOpacity?: number;
+  brandTemplate?: "CLASSIC" | "MINIMAL" | "CREATIVE" | "MODERN";
+  brandColor?: string;
+  brandTextColor?: string;
+  footerText?: string;
+  signatureType?: "NONE" | "UPLOAD" | "TYPED";
+  signatureUrl?: string;
+  signatureText?: string;
+  signatureFont?: string;
+  bankDetails?: {
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    ifscCode: string;
+    branchName?: string;
+  };
 }
 
 interface AuthContextType {

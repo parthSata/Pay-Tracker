@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { useAuth } from "../auth";
+import { downloadInvoicePDF } from "@/lib/pdf";
 
 export function useSearch() {
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -38,7 +39,9 @@ export function useSearch() {
   };
 
   const downloadPDF = () => {
-    window.print();
+    if (invoice) {
+      downloadInvoicePDF("invoice-print-container", invoice.invoiceNumber);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

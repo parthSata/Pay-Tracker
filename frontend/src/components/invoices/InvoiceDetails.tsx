@@ -53,11 +53,11 @@ export function InvoiceDetails({ inv, upiId, total }: InvoiceDetailsProps) {
         {inv.taxType === "CGST_SGST" ? (
           <>
             <div className="flex justify-between text-[11px] text-muted-foreground/80 pl-4">
-              <span>CGST ({inv.gstRate/2}%)</span>
+              <span>CGST ({inv.gstRate / 2}%)</span>
               <span className="tabular-nums">{formatINR(inv.cgst)}</span>
             </div>
             <div className="flex justify-between text-[11px] text-muted-foreground/80 pl-4">
-              <span>SGST ({inv.gstRate/2}%)</span>
+              <span>SGST ({inv.gstRate / 2}%)</span>
               <span className="tabular-nums">{formatINR(inv.sgst)}</span>
             </div>
           </>

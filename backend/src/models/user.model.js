@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { encrypt, decrypt } from "../utils/encryption.js";
 
 const userSchema = new Schema(
     {
@@ -48,6 +49,60 @@ const userSchema = new Schema(
             type: String,
             default: "Gujarat",
         },
+        profilePic: {
+            type: String,
+        },
+        logoUrl: {
+            type: String,
+        },
+        watermarkEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        watermarkOpacity: {
+            type: Number,
+            default: 0.1,
+        },
+        brandTemplate: {
+            type: String,
+            enum: ["CLASSIC", "MINIMAL", "CREATIVE", "MODERN"],
+            default: "CLASSIC",
+        },
+        brandColor: {
+            type: String,
+            default: "#6366f1",
+        },
+        brandTextColor: {
+            type: String,
+            default: "#ffffff",
+        },
+        footerText: {
+            type: String,
+            default: "",
+        },
+        signatureType: {
+            type: String,
+            enum: ["NONE", "UPLOAD", "TYPED"],
+            default: "NONE",
+        },
+        signatureUrl: {
+            type: String,
+        },
+        signatureText: {
+            type: String,
+            default: "",
+        },
+        signatureFont: {
+            type: String,
+            default: "Dancing Script",
+        },
+        bankDetails: {
+            bankName: { type: String, default: "", set: encrypt, get: decrypt },
+            accountName: { type: String, default: "", set: encrypt, get: decrypt },
+            accountNumber: { type: String, default: "", set: encrypt, get: decrypt },
+            ifscCode: { type: String, default: "", set: encrypt, get: decrypt },
+            branchName: { type: String, default: "", set: encrypt, get: decrypt },
+        },
         isVerified: {
             type: Boolean,
             default: false,
@@ -67,7 +122,9 @@ const userSchema = new Schema(
         }
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { getters: true },
+        toObject: { getters: true }
     }
 );
 

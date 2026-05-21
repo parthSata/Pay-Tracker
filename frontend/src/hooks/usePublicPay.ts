@@ -30,6 +30,8 @@ const mapActionToTitle = (action: string): string => {
   }
 };
 
+import { downloadInvoicePDF } from "@/lib/pdf";
+
 export function usePublicPay(inv: any, logs: any[] = []) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -67,7 +69,9 @@ export function usePublicPay(inv: any, logs: any[] = []) {
   };
   
   const downloadPDF = () => {
-    window.print();
+    if (inv) {
+      downloadInvoicePDF("invoice-print-container", inv.invoiceNumber);
+    }
   };
 
   const timelineEvents = logs.map((log: any) => ({

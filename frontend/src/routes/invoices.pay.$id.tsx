@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { InvoiceDetails } from "@/components/invoices/InvoiceDetails";
 import { PaymentSection } from "@/components/shared/PaymentSection";
 import axios from "axios";
+import { downloadInvoicePDF } from "@/lib/pdf";
+import { PrintInvoiceTemplate } from "@/components/invoices/PrintInvoiceTemplate";
 
 export const Route = createFileRoute("/invoices/pay/$id")({
   loader: async ({ params }) => {
@@ -67,7 +69,7 @@ function DashboardPay() {
             Back to received invoices
           </Link>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl gap-2" onClick={() => window.print()}>
+            <Button variant="outline" size="sm" className="rounded-xl gap-2" onClick={() => downloadInvoicePDF("invoice-print-container", invoice.invoiceNumber)}>
                <Download className="h-4 w-4" />
                Download PDF
             </Button>
@@ -89,6 +91,11 @@ function DashboardPay() {
           </div>
           <PaymentSection status={status} qrUrl={qrUrl} copy={copy} copied={copied} upiId={upiId} inv={invoice} />
         </div>
+      </div>
+
+      {/* Hidden print container for capturing white professional A4 layout in PDF */}
+      <div style={{ position: "absolute", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
+        <PrintInvoiceTemplate id="invoice-print-container" invoice={invoice} qrCodeUrl={qrUrl} />
       </div>
     </AppShell>
   );

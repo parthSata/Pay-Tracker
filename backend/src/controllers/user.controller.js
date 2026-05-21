@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { sendEmail } from "../utils/sendEmail.js";
 import speakeasy from "speakeasy";
 import qrcode from "qrcode";
+import { uploadInCloudinary } from "../utils/cloudinary.js";
 
 const generateAccessAndRefereshTokens = async(userId) =>{
     try {
@@ -214,7 +215,25 @@ const logoutUser = asyncHandler(async(req, res) => {
 })
 
 const updateUserDetails = asyncHandler(async (req, res) => {
-    const { name, email, businessName, upiId } = req.body
+    const { 
+        name, 
+        email, 
+        businessName, 
+        upiId,
+        profilePic,
+        logoUrl,
+        watermarkEnabled,
+        watermarkOpacity,
+        brandTemplate,
+        brandColor,
+        brandTextColor,
+        footerText,
+        signatureType,
+        signatureUrl,
+        signatureText,
+        signatureFont,
+        bankDetails
+    } = req.body
 
     if (!name || !email) {
         throw new ApiError(400, "Name and email are required")
@@ -227,7 +246,20 @@ const updateUserDetails = asyncHandler(async (req, res) => {
                 name,
                 email,
                 businessName,
-                upiId
+                upiId,
+                profilePic,
+                logoUrl,
+                watermarkEnabled,
+                watermarkOpacity,
+                brandTemplate,
+                brandColor,
+                brandTextColor,
+                footerText,
+                signatureType,
+                signatureUrl,
+                signatureText,
+                signatureFont,
+                bankDetails
             }
         },
         { new: true }
@@ -362,7 +394,7 @@ const deleteAccount = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     
     // Delete all invoices belonging to this user
-    await Invoice.deleteMany({ owner: userId });
+    await Invoice.deleteMany({ userId });
     
     // Delete the user
     await User.findByIdAndDelete(userId);
@@ -484,6 +516,111 @@ const verify2FALogin = asyncHandler(async (req, res) => {
         );
 });
 
+const uploadLogo = asyncHandler(async (req, res) => {
+    console.log("[DEBUG] uploadLogo: started");
+    if (!req.file) {
+        console.log("[DEBUG] uploadLogo: error - no file provided");
+        throw new ApiError(400, "Logo file is required");
+    }
+    console.log("[DEBUG] uploadLogo: file details", {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        encoding: req.file.encoding,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        path: req.file.path
+    });
+    
+    const uploadResult = await uploadInCloudinary(req.file.path, "image", "Pay-Tracker/logos");
+    console.log("[DEBUG] uploadLogo: Cloudinary response", uploadResult);
+    
+    if (!uploadResult) {
+        console.log("[DEBUG] uploadLogo: error - Cloudinary upload failed");
+        throw new ApiError(500, "Failed to upload logo to Cloudinary");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        { $set: { logoUrl: uploadResult.secure_url } },
+        { new: true }
+    ).select("-password -refreshToken");
+
+    console.log("[DEBUG] uploadLogo: user updated successfully");
+    return res.status(200).json(
+        new ApiResponse(200, user, "Logo uploaded successfully")
+    );
+});
+
+const uploadSignature = asyncHandler(async (req, res) => {
+    console.log("[DEBUG] uploadSignature: started");
+    if (!req.file) {
+        console.log("[DEBUG] uploadSignature: error - no file provided");
+        throw new ApiError(400, "Signature file is required");
+    }
+    console.log("[DEBUG] uploadSignature: file details", {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        encoding: req.file.encoding,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        path: req.file.path
+    });
+    
+    const uploadResult = await uploadInCloudinary(req.file.path, "image", "Pay-Tracker/invoice-watermarks");
+    console.log("[DEBUG] uploadSignature: Cloudinary response", uploadResult);
+    
+    if (!uploadResult) {
+        console.log("[DEBUG] uploadSignature: error - Cloudinary upload failed");
+        throw new ApiError(500, "Failed to upload signature to Cloudinary");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        { $set: { signatureUrl: uploadResult.secure_url } },
+        { new: true }
+    ).select("-password -refreshToken");
+
+    console.log("[DEBUG] uploadSignature: user updated successfully");
+    return res.status(200).json(
+        new ApiResponse(200, user, "Signature uploaded successfully")
+    );
+});
+
+const uploadAvatar = asyncHandler(async (req, res) => {
+    console.log("[DEBUG] uploadAvatar: started");
+    if (!req.file) {
+        console.log("[DEBUG] uploadAvatar: error - no file provided");
+        throw new ApiError(400, "Avatar file is required");
+    }
+    console.log("[DEBUG] uploadAvatar: file details", {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        encoding: req.file.encoding,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        path: req.file.path
+    });
+    
+    const uploadResult = await uploadInCloudinary(req.file.path, "image", "Pay-Tracker/profile-images");
+    console.log("[DEBUG] uploadAvatar: Cloudinary response", uploadResult);
+    
+    if (!uploadResult) {
+        console.log("[DEBUG] uploadAvatar: error - Cloudinary upload failed");
+        throw new ApiError(500, "Failed to upload avatar to Cloudinary");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        { $set: { profilePic: uploadResult.secure_url } },
+        { new: true }
+    ).select("-password -refreshToken");
+
+    console.log("[DEBUG] uploadAvatar: user updated successfully");
+    return res.status(200).json(
+        new ApiResponse(200, user, "Avatar uploaded successfully")
+    );
+});
+
 export {
     registerUser,
     loginUser,
@@ -498,5 +635,8 @@ export {
     enable2FA,
     disable2FA,
     verify2FALogin,
-    changeCurrentPassword
+    changeCurrentPassword,
+    uploadLogo,
+    uploadSignature,
+    uploadAvatar
 }
