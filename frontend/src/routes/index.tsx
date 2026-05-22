@@ -7,6 +7,9 @@ import { ExpectedRevenue } from "@/components/dashboard/ExpectedRevenue";
 import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
 import { RecentInvoices } from "@/components/dashboard/RecentInvoices";
 import { ActivityLogs } from "@/components/dashboard/ActivityLogs";
+import { RecoveryRateGauge } from "@/components/dashboard/RecoveryRateGauge";
+import { CollectedVsPending } from "@/components/dashboard/CollectedVsPending";
+import { RecoveryEfficiency } from "@/components/dashboard/RecoveryEfficiency";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "../auth";
 import { hasStoredSession } from "@/lib/session";
@@ -77,7 +80,12 @@ function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0">
               <CashflowChart data={dynamicCashflow} />
               <ExpectedRevenue pending={pending} pendingInvoicesCount={invoices.filter(i => i.status === 'PENDING').length} />
+              
               <WeeklyChart data={dynamicWeekly} />
+              <RecoveryRateGauge invoices={invoices} />
+              <CollectedVsPending invoices={invoices} />
+
+              <RecoveryEfficiency invoices={invoices} className="lg:col-span-3" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">

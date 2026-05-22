@@ -1,4 +1,5 @@
 import { formatINR } from "@/lib/utils";
+import { usePrintInvoiceTemplate } from "@/hooks/usePrintInvoiceTemplate";
 
 interface PrintInvoiceTemplateProps {
   id?: string;
@@ -9,28 +10,14 @@ interface PrintInvoiceTemplateProps {
 export function PrintInvoiceTemplate({ id, invoice, qrCodeUrl }: PrintInvoiceTemplateProps) {
   if (!invoice) return null;
 
-  const merchant = invoice.sme || invoice.userId || {};
-  const tax = invoice.gstAmount || 0;
-  const total = invoice.totalAmount || ((invoice.amount || 0) + tax);
-  const isPaid = (invoice.status || "").toUpperCase() === "PAID";
-
-  const formattedCreatedDate = invoice.createdAt
-    ? new Date(invoice.createdAt).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : "";
-
-  const formattedDueDate = invoice.dueDate
-    ? new Date(invoice.dueDate).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : "";
-
-  const headerBgColor = merchant.brandColor || "#1e3a8a"; // Default professional deep blue
+  const {
+    merchant,
+    total,
+    isPaid,
+    formattedCreatedDate,
+    formattedDueDate,
+    headerBgColor,
+  } = usePrintInvoiceTemplate({ invoice });
 
   return (
     <div

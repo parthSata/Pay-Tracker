@@ -78,7 +78,7 @@ export function CashPositionMetricCard({
           {renderIcon()}
         </div>
       </div>
-      <span className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
+      <span className="mt-2 text-2xl font-extrabold tracking-tight text-foreground break-all">
         <CountUp to={amount} format={(n) => formatINR(Math.round(n))} />
       </span>
       <span className="mt-1 text-xs text-muted-foreground">

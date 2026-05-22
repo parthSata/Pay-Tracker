@@ -1,6 +1,5 @@
-import { useRef } from "react";
 import { Camera, Mail, MapPin, Building2, CreditCard, Save, BadgeCheck, Upload, Trash2, Shield, Palette, Sparkles, PenTool, Landmark, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useProfileFormLogic } from "@/hooks/useProfileFormLogic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,23 +58,10 @@ export function ProfileForm({
   setBankDetail,
   uploadFile
 }: ProfileFormProps) {
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "signature" | "avatar") => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size exceeds the 10MB limit.");
-        return;
-      }
-      uploadFile(file, type);
-    }
-  };
-
-  const removeImage = (type: "logoUrl" | "signatureUrl" | "profilePic") => {
-    setVal(type, "");
-    toast.success(`${type === "logoUrl" ? "Logo" : type === "signatureUrl" ? "Signature" : "Avatar"} removed locally. Save to apply.`);
-  };
+  const { avatarInputRef, handleFileChange, removeImage } = useProfileFormLogic({
+    setVal,
+    uploadFile,
+  });
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fade-up pb-16">
@@ -178,11 +164,11 @@ export function ProfileForm({
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Full Name</Label>
-                <Input name="name" value={formData.name} onChange={handleChange} className="h-10 rounded-xl" />
+                <Input name="name" value={formData.name} onChange={handleChange} maxLength={50} className="h-10 rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email</Label>
-                <Input name="email" type="email" value={formData.email} onChange={handleChange} className="h-10 rounded-xl" />
+                <Input name="email" type="email" value={formData.email} onChange={handleChange} maxLength={100} className="h-10 rounded-xl" />
               </div>
             </div>
           </section>
@@ -196,7 +182,7 @@ export function ProfileForm({
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Business Name</Label>
-                <Input name="businessName" value={formData.businessName} onChange={handleChange} className="h-10 rounded-xl" />
+                <Input name="businessName" value={formData.businessName} onChange={handleChange} maxLength={50} className="h-10 rounded-xl" />
               </div>
             </div>
           </section>
@@ -210,7 +196,7 @@ export function ProfileForm({
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">UPI ID</Label>
-                <Input name="upiId" value={formData.upiId} onChange={handleChange} placeholder="merchant@upi" className="h-10 rounded-xl" />
+                <Input name="upiId" value={formData.upiId} onChange={handleChange} placeholder="merchant@upi" maxLength={50} className="h-10 rounded-xl" />
               </div>
               <div className="flex items-start gap-2.5 rounded-xl bg-primary-soft text-primary p-3 text-xs">
                 <MapPin className="h-4.5 w-4.5 shrink-0 mt-0.5" />
@@ -375,6 +361,7 @@ export function ProfileForm({
                   value={formData.bankDetails.bankName} 
                   onChange={(e) => setBankDetail("bankName", e.target.value)} 
                   placeholder="e.g. HDFC Bank"
+                  maxLength={50}
                   className="h-10 rounded-xl"
                 />
               </div>
@@ -384,6 +371,7 @@ export function ProfileForm({
                   value={formData.bankDetails.accountName} 
                   onChange={(e) => setBankDetail("accountName", e.target.value)} 
                   placeholder="e.g. Acme Corp"
+                  maxLength={50}
                   className="h-10 rounded-xl"
                 />
               </div>
@@ -393,6 +381,7 @@ export function ProfileForm({
                   value={formData.bankDetails.accountNumber} 
                   onChange={(e) => setBankDetail("accountNumber", e.target.value)} 
                   placeholder="e.g. 5010023456789"
+                  maxLength={30}
                   className="h-10 rounded-xl"
                 />
               </div>
@@ -402,6 +391,7 @@ export function ProfileForm({
                   value={formData.bankDetails.ifscCode} 
                   onChange={(e) => setBankDetail("ifscCode", e.target.value.toUpperCase())} 
                   placeholder="e.g. HDFC0000240"
+                  maxLength={15}
                   className="h-10 rounded-xl"
                 />
               </div>
@@ -411,6 +401,7 @@ export function ProfileForm({
                   value={formData.bankDetails.branchName} 
                   onChange={(e) => setBankDetail("branchName", e.target.value)} 
                   placeholder="e.g. Connaught Place, New Delhi"
+                  maxLength={100}
                   className="h-10 rounded-xl"
                 />
               </div>
@@ -451,6 +442,7 @@ export function ProfileForm({
                     value={formData.signatureText} 
                     onChange={handleChange} 
                     placeholder="Enter your name" 
+                    maxLength={30}
                     className="h-10 rounded-xl"
                   />
                 </div>
@@ -536,6 +528,7 @@ export function ProfileForm({
                 value={formData.footerText}
                 onChange={handleChange}
                 placeholder="e.g. Thank you for your business! Payment is due within 15 days of invoice date."
+                maxLength={200}
                 className="w-full min-h-[80px] text-sm bg-background border border-border rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <p className="text-[10px] text-muted-foreground">This text is shown at the very bottom of your generated invoices.</p>

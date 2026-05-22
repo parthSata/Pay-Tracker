@@ -1,15 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { Loader2, CheckCircle2, Send, ArrowRight } from "lucide-react";
-import { formatINR } from "@/lib/utils";
-import { useTranslation } from "react-i18next";
+import { useCashPositionInvoiceItem } from "@/hooks/useCashPositionInvoiceItem";
 
 interface CashPositionInvoiceItemProps {
   invoice: any;
   activeTab: "today" | "overdue" | "week";
   sendingState: "idle" | "sending" | "success";
-  daysOverdue: number;
-  daysUntil: number;
-  invoiceTotal: number;
   sendReminder: () => void;
   mode?: "receivables" | "payables";
 }
@@ -18,30 +14,16 @@ export function CashPositionInvoiceItem({
   invoice,
   activeTab,
   sendingState,
-  daysOverdue,
-  daysUntil,
-  invoiceTotal,
   sendReminder,
   mode = "receivables",
 }: CashPositionInvoiceItemProps) {
-  const { t } = useTranslation();
-
-  const isReminderSentToday = () => {
-    if (!invoice.lastReminderSentAt) return false;
-    const lastSent = new Date(invoice.lastReminderSentAt);
-    const today = new Date();
-    return (
-      lastSent.getFullYear() === today.getFullYear() &&
-      lastSent.getMonth() === today.getMonth() &&
-      lastSent.getDate() === today.getDate()
-    );
-  };
-
-  const alreadySentToday = isReminderSentToday();
-
-  const displayName = mode === "payables"
-    ? (invoice.userId?.businessName || invoice.userId?.name || "Merchant")
-    : invoice.clientName;
+  const {
+    alreadySentToday,
+    displayName,
+    dueStatusText,
+    formattedTotal,
+    t,
+  } = useCashPositionInvoiceItem({ invoice, activeTab, mode });
 
   return (
     <div className="flex items-center justify-between py-3.5 hover:bg-accent/30 rounded-xl px-3 transition-all group animate-fade-in">
@@ -72,13 +54,7 @@ export function CashPositionInvoiceItem({
                   : "text-warning-foreground"
               }`}
             >
-              {activeTab === "overdue"
-                ? t("dashboard_days_overdue", { count: daysOverdue })
-                : activeTab === "today"
-                ? t("dashboard_due_today")
-                : daysUntil === 1
-                ? t("dashboard_due_tomorrow")
-                : t("dashboard_due_in_days", { count: daysUntil })}
+              {dueStatusText}
             </span>
           </div>
         </div>
@@ -87,7 +63,7 @@ export function CashPositionInvoiceItem({
       {/* Right: Amount & Actions */}
       <div className="flex items-center gap-3 shrink-0">
         <span className="text-sm font-bold text-foreground tabular-nums">
-          {formatINR(invoiceTotal)}
+          {formattedTotal}
         </span>
 
         <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">

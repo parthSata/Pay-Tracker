@@ -21,8 +21,8 @@ export function ClientCard({ client }: ClientCardProps) {
       <div>
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+          <div className="min-w-0">
+            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors break-words">
               {client.clientName}
             </h3>
             <p className="text-xs text-muted-foreground truncate max-w-[240px]">

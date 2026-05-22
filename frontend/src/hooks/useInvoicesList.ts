@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useNotifications } from "../context/NotificationContext";
 import { formatINR, type InvoiceStatus } from "@/lib/utils";
 
-export const filters: ("all" | "remaining" | InvoiceStatus)[] = ["all", "remaining", "paid", "pending", "overdue"];
+export const filters: ("all" | InvoiceStatus)[] = ["all", "paid", "pending", "overdue"];
 
 export function useInvoicesList() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
@@ -56,11 +56,7 @@ export function useInvoicesList() {
   const rows = useMemo(() => {
     return invoices.filter((i) => {
       const status = i.status.toLowerCase();
-      let matchFilter = filter === "all" || status === filter;
-      
-      if (filter === "remaining") {
-        matchFilter = status === "pending" || status === "overdue";
-      }
+      const matchFilter = filter === "all" || status === filter;
 
       const matchQ = q === "" || 
         `${i.clientName} ${i.invoiceNumber} ${i.clientEmail}`.toLowerCase().includes(q.toLowerCase());
@@ -70,7 +66,6 @@ export function useInvoicesList() {
 
   const counts = {
     all: invoices.length,
-    remaining: invoices.filter((i) => i.status === "PENDING" || i.status === "OVERDUE").length,
     paid: invoices.filter((i) => i.status === "PAID").length,
     pending: invoices.filter((i) => i.status === "PENDING").length,
     overdue: invoices.filter((i) => i.status === "OVERDUE").length,

@@ -62,10 +62,10 @@ export function CashPositionHeader({
       <div
         className={`mt-4 flex items-start gap-2.5 rounded-xl border p-3.5 text-xs transition-all duration-300 ${
           insightTone === "warning"
-            ? "bg-destructive-soft/30 border-destructive/20 text-destructive-foreground dark:text-red-300"
+            ? "bg-destructive-soft/30 border-destructive/20 text-destructive dark:text-red-300"
             : insightTone === "info"
             ? "bg-primary-soft/30 border-primary/20 text-primary"
-            : "bg-success-soft/30 border-success/20 text-success-foreground dark:text-green-300"
+            : "bg-success-soft/30 border-success/20 text-success dark:text-green-300"
         }`}
       >
         {insightTone === "warning" ? (

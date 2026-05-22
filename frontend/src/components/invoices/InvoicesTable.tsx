@@ -56,9 +56,9 @@ export function InvoicesTable({ rows, isLoading }: InvoicesTableProps) {
                       <div className="h-8 w-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[11px] font-semibold">
                         {inv.clientName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                       </div>
-                      <div>
-                        <div className="font-medium">{inv.clientName}</div>
-                        <div className="text-xs text-muted-foreground">{inv.clientEmail}</div>
+                      <div className="min-w-0">
+                        <div className="font-medium truncate max-w-[120px] sm:max-w-[200px]" title={inv.clientName}>{inv.clientName}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]" title={inv.clientEmail}>{inv.clientEmail}</div>
                       </div>
                     </div>
                   </td>

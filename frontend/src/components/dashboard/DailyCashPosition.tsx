@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
-import { useDailyCashPosition } from "@/hooks/useDailyCashPosition";
+import { useDailyCashPositionController } from "@/hooks/useDailyCashPositionController";
 import { CashPositionHeader } from "@/components/dashboard/CashPositionHeader";
 import { CashPositionMetricCard } from "@/components/dashboard/CashPositionMetricCard";
 import { CashPositionInvoiceItem } from "@/components/dashboard/CashPositionInvoiceItem";
@@ -14,16 +13,9 @@ interface DailyCashPositionProps {
 
 export function DailyCashPosition({ invoices, receivedInvoices = [] }: DailyCashPositionProps) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<"receivables" | "payables">(() => {
-    if (invoices.length === 0 && receivedInvoices.length > 0) {
-      return "payables";
-    }
-    return "receivables";
-  });
-
-  const currentInvoices = mode === "receivables" ? invoices : receivedInvoices;
-
   const {
+    mode,
+    setMode,
     activeTab,
     setActiveTab,
     expectedTodayInvoices,
@@ -32,30 +24,12 @@ export function DailyCashPosition({ invoices, receivedInvoices = [] }: DailyCash
     totalExpectedToday,
     totalOverdue,
     totalIncomingWeek,
-    insightText,
-    insightTone,
+    displayInsightText,
+    displayInsightTone,
     activeInvoices,
     sendingStates,
-    getDaysOverdue,
-    getDaysUntilDue,
-    getInvoiceTotal,
     sendReminder,
-  } = useDailyCashPosition(currentInvoices);
-
-  // Customize insight message for Payables mode
-  const displayInsightText = mode === "payables"
-    ? overdueInvoices.length > 0
-      ? `You have ${overdueInvoices.length} overdue payment(s) to settle. Please check your payables.`
-      : expectedTodayInvoices.length > 0
-      ? "You have payments due today. Settle them on time to maintain credit score."
-      : "You are all caught up on your payments! Great job."
-    : insightText;
-
-  const displayInsightTone = mode === "payables"
-    ? overdueInvoices.length > 0
-      ? "warning"
-      : "success"
-    : insightTone;
+  } = useDailyCashPositionController({ invoices, receivedInvoices });
 
   return (
     <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl shadow-card overflow-hidden animate-fade-up">
@@ -136,9 +110,6 @@ export function DailyCashPosition({ invoices, receivedInvoices = [] }: DailyCash
                     invoice={inv}
                     activeTab={activeTab}
                     sendingState={sendingStates[inv._id] || "idle"}
-                    daysOverdue={getDaysOverdue(inv.dueDate)}
-                    daysUntil={getDaysUntilDue(inv.dueDate)}
-                    invoiceTotal={getInvoiceTotal(inv)}
                     sendReminder={() => sendReminder(inv._id)}
                     mode={mode}
                   />

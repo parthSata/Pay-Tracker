@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import {
   LayoutDashboard,
@@ -8,12 +8,9 @@ import {
   Bell,
   Settings,
   Sparkles,
-  CheckCircle2,
-  AlertTriangle,
   CreditCard,
   User,
   LogOut,
-  Eye,
   Lock,
   Palette,
   Globe,
@@ -21,7 +18,6 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   Popover,
   PopoverContent,
@@ -35,10 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "../../auth";
-import { useNotifications } from "../../context/NotificationContext";
 import { isNavActive } from "@/lib/navActive";
-import { useTranslation } from "react-i18next";
 
 const nav = [
   { to: "/", labelKey: "nav_dashboard", icon: LayoutDashboard },
@@ -51,6 +44,8 @@ const nav = [
 
 export type AppShellVariant = "app" | "minimal";
 
+import { useAppShell } from "@/hooks/useAppShell";
+
 export function AppShell({
   children,
   variant = "app",
@@ -58,24 +53,18 @@ export function AppShell({
   children: ReactNode;
   variant?: AppShellVariant;
 }) {
-  const { t } = useTranslation();
-  const { pathname } = useLocation();
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const { notifs, unreadCount, markAllRead, markAsRead } = useNotifications();
-
-  const isMinimal = variant === "minimal";
-
-  const handleLogout = () => {
-    logout();
-    navigate({ to: "/login" });
-    toast.success("Signed out successfully");
-  };
-
-  const handleMarkAllRead = () => {
-    markAllRead();
-    toast.success("All notifications marked as read");
-  };
+  const {
+    t,
+    pathname,
+    user,
+    navigate,
+    unreadCount,
+    markAsRead,
+    isMinimal,
+    handleLogout,
+    handleMarkAllRead,
+    decoratedNotifs,
+  } = useAppShell({ variant });
 
   return (
     <div className="min-h-dvh flex w-full bg-background gradient-mesh">
@@ -200,26 +189,8 @@ export function AppShell({
                     </button>
                   </div>
                   <div className="max-h-[min(380px,50dvh)] overflow-y-auto">
-                    {notifs.map((n) => {
-                      const Icon =
-                        n.category === "payment"
-                          ? CheckCircle2
-                          : n.category === "overdue"
-                            ? AlertTriangle
-                            : n.category === "viewed"
-                              ? Eye
-                              : n.category === "report"
-                                ? FileText
-                                : n.category === "product"
-                                  ? Sparkles
-                                  : Bell;
-
-                      const tone =
-                        n.type === "success"
-                          ? "text-success bg-success-soft"
-                          : n.type === "warning"
-                            ? "text-destructive bg-destructive-soft"
-                            : "text-primary bg-primary-soft";
+                    {decoratedNotifs.map((n) => {
+                      const Icon = n.Icon;
                       return (
                         <button
                           key={n.id}
@@ -228,7 +199,7 @@ export function AppShell({
                             }`}
                         >
                           <div
-                            className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${tone}`}
+                            className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${n.toneClass}`}
                           >
                             <Icon className="h-4 w-4" />
                           </div>

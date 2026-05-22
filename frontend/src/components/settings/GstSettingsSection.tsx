@@ -49,6 +49,7 @@ export function GstSettingsSection() {
               onChange={(e) => setGstNumber(e.target.value.toUpperCase())} 
               placeholder="24ABCDE1234F1Z5" 
               disabled={!gstEnabled}
+              maxLength={15}
             />
           </div>
           <div className="space-y-2">

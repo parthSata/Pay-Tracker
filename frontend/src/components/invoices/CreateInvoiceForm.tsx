@@ -39,6 +39,7 @@ function FloatingInput({
   onBlur,
   type = "text",
   prefix,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -46,6 +47,7 @@ function FloatingInput({
   onBlur?: () => void;
   type?: string;
   prefix?: string;
+  maxLength?: number;
 }) {
   const [focused, setFocused] = useState(false);
 
@@ -72,6 +74,7 @@ function FloatingInput({
             setFocused(false);
             onBlur?.();
           }}
+          maxLength={maxLength}
           className="flex-1 bg-transparent px-3.5 py-2 text-sm outline-none placeholder:text-muted-foreground/60"
         />
       </div>
@@ -105,7 +108,7 @@ export function CreateInvoiceForm({
     <div className="lg:col-span-3 space-y-5 rounded-2xl bg-card border border-border p-6 shadow-card animate-fade-up">
       <div className="space-y-4">
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</div>
-        <FloatingInput label="Client name" value={client} onChange={setClient} />
+        <FloatingInput label="Client name" value={client} onChange={setClient} maxLength={50} />
         <div className="space-y-1">
           <FloatingInput
             label="Email address"
@@ -113,6 +116,7 @@ export function CreateInvoiceForm({
             value={email}
             onChange={setEmail}
             onBlur={() => checkEmail(email)}
+            maxLength={100}
           />
           {emailWarning && <p className="text-[11px] text-amber-500 font-medium px-1 mt-1 animate-fade-in">{emailWarning}</p>}
         </div>
@@ -123,7 +127,7 @@ export function CreateInvoiceForm({
       <div className="space-y-4">
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invoice details</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FloatingInput label="Amount" prefix="₹" value={amount} onChange={setAmount} />
+          <FloatingInput label="Amount" prefix="₹" value={amount} onChange={setAmount} maxLength={10} />
           <FloatingInput label="Due date" type="date" value={due} onChange={setDue} />
         </div>
       </div>
@@ -171,6 +175,7 @@ export function CreateInvoiceForm({
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Thanks for your business!"
+          maxLength={500}
           className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all resize-none"
         />
       </div>

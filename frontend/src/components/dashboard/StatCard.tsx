@@ -45,7 +45,7 @@ export function StatCard({
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             {label}
           </div>
-          <div className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-foreground break-all">
             <CountUp to={value} format={isCurrency ? (n) => formatINR(Math.round(n)) : undefined} />
           </div>
         </div>

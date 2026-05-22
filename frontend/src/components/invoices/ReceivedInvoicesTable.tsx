@@ -47,7 +47,9 @@ export function ReceivedInvoicesTable({ invoices, isLoading }: ReceivedInvoicesT
                 <tr key={inv._id} className="group hover:bg-accent/40 transition-colors">
                   <td className="px-5 py-3.5 font-mono text-xs font-medium text-foreground">{inv.invoiceNumber}</td>
                   <td className="px-5 py-3.5 font-medium">
-                    {(inv.userId as any)?.businessName || (inv.userId as any)?.name || t('inv_unknown_business')}
+                    <div className="truncate max-w-[120px] sm:max-w-[200px]" title={(inv.userId as any)?.businessName || (inv.userId as any)?.name || t('inv_unknown_business')}>
+                      {(inv.userId as any)?.businessName || (inv.userId as any)?.name || t('inv_unknown_business')}
+                    </div>
                   </td>
                   <td className="px-5 py-3.5 font-semibold tabular-nums">{formatINR(inv.amount)}</td>
                   <td className="px-5 py-3.5 text-muted-foreground">
