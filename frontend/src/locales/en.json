@@ -19,6 +19,8 @@
   "nav_create": "Create",
   "nav_search": "Search",
   "nav_clients": "Clients",
+  "nav_automations": "Automations",
+  "nav_portal": "Client Portal",
   "shell_app_name": "Pay Tracker",
   "shell_app_subtitle": "Invoice & Cashflow",
   "shell_admin_panel": "Admin Panel",

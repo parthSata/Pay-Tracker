@@ -239,6 +239,20 @@ const updateUserDetails = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Name and email are required")
     }
 
+    let finalWatermarkEnabled = watermarkEnabled;
+    let finalBrandTemplate = brandTemplate;
+    let finalBrandColor = brandColor;
+    let finalBrandTextColor = brandTextColor;
+    let finalSignatureType = signatureType;
+
+    if (req.user?.plan === "FREE") {
+        finalWatermarkEnabled = false;
+        finalBrandTemplate = "CLASSIC";
+        finalBrandColor = "#6366f1";
+        finalBrandTextColor = "#ffffff";
+        finalSignatureType = "NONE";
+    }
+
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
@@ -249,13 +263,13 @@ const updateUserDetails = asyncHandler(async (req, res) => {
                 upiId,
                 profilePic,
                 logoUrl,
-                watermarkEnabled,
+                watermarkEnabled: finalWatermarkEnabled,
                 watermarkOpacity,
-                brandTemplate,
-                brandColor,
-                brandTextColor,
+                brandTemplate: finalBrandTemplate,
+                brandColor: finalBrandColor,
+                brandTextColor: finalBrandTextColor,
                 footerText,
-                signatureType,
+                signatureType: finalSignatureType,
                 signatureUrl,
                 signatureText,
                 signatureFont,
@@ -621,6 +635,32 @@ const uploadAvatar = asyncHandler(async (req, res) => {
     );
 });
 
+const toggleSubscriptionPlan = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user?._id);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    user.plan = user.plan === "FREE" ? "PAID" : "FREE";
+
+    // If downgrading to FREE, reset premium configurations
+    if (user.plan === "FREE") {
+        user.watermarkEnabled = false;
+        user.brandTemplate = "CLASSIC";
+        user.brandColor = "#6366f1";
+        user.brandTextColor = "#ffffff";
+        user.signatureType = "NONE";
+    }
+
+    await user.save({ validateBeforeSave: false });
+
+    const updatedUser = await User.findById(user._id).select("-password -refreshToken");
+
+    return res.status(200).json(
+        new ApiResponse(200, updatedUser, `Successfully switched to ${user.plan} plan`)
+    );
+});
+
 export {
     registerUser,
     loginUser,
@@ -638,5 +678,6 @@ export {
     changeCurrentPassword,
     uploadLogo,
     uploadSignature,
-    uploadAvatar
+    uploadAvatar,
+    toggleSubscriptionPlan
 }

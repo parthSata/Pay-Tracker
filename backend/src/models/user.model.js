@@ -107,6 +107,11 @@ const userSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        plan: {
+            type: String,
+            enum: ["FREE", "PAID"],
+            default: "FREE",
+        },
         emailVerificationToken: {
             type: String,
         },

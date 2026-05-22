@@ -1,6 +1,8 @@
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { useRecoveryEfficiency } from "@/hooks/useRecoveryEfficiency";
+import { useAuth } from "@/auth";
+import { PremiumLockOverlay } from "@/components/shared/PremiumLockOverlay";
 
 interface RecoveryEfficiencyProps {
   invoices: any[];
@@ -8,13 +10,16 @@ interface RecoveryEfficiencyProps {
 }
 
 export function RecoveryEfficiency({ invoices, className = "" }: RecoveryEfficiencyProps) {
+  const { user } = useAuth();
+  const isFree = user?.plan === "FREE";
   const { monthlyData, formatINR, t } = useRecoveryEfficiency({ invoices });
 
   return (
     <div 
-      className={`rounded-2xl bg-card border border-border p-5 shadow-card hover:shadow-pop transition-all duration-300 animate-fade-up flex flex-col justify-between ${className}`}
+      className={`relative rounded-2xl bg-card border border-border p-5 shadow-card hover:shadow-pop transition-all duration-300 animate-fade-up flex flex-col justify-between ${className}`}
       style={{ animationDelay: "250ms" }}
     >
+      <div className={`flex flex-col justify-between h-full ${isFree ? "filter blur-sm select-none pointer-events-none" : ""}`}>
       <div>
         <div className="flex items-start justify-between mb-2">
           <div>
@@ -78,6 +83,13 @@ export function RecoveryEfficiency({ invoices, className = "" }: RecoveryEfficie
       <div className="mt-3 text-[10px] text-center text-muted-foreground leading-snug">
         High recovery percentage indicates efficient client onboarding & payment terms.
       </div>
+      </div>
+      {isFree && (
+        <PremiumLockOverlay
+          title="Recovery Efficiency Analytics"
+          description="Analyze collection rates for invoice cohorts and check month-over-month billing trends."
+        />
+      )}
     </div>
   );
 }

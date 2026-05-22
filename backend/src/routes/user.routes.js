@@ -16,7 +16,8 @@ import {
     changeCurrentPassword,
     uploadLogo,
     uploadSignature,
-    uploadAvatar
+    uploadAvatar,
+    toggleSubscriptionPlan
 } from "../controllers/user.controller.js";
 import { getActivityLogs } from "../controllers/activity.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -34,6 +35,7 @@ router.route("/resend-verification").post(resendVerificationEmail);
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/update-account").patch(verifyJWT, updateUserDetails);
 router.route("/update-gst").patch(verifyJWT, updateGstSettings);
+router.route("/subscribe").post(verifyJWT, toggleSubscriptionPlan);
 router.route("/delete-account").delete(verifyJWT, deleteAccount);
 router.route("/activity").get(verifyJWT, getActivityLogs);
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);

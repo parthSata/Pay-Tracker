@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isNavActive } from "@/lib/navActive";
 
-const nav = [
+const nav: { to: string; labelKey: string; icon: any; isPremium?: boolean }[] = [
   { to: "/", labelKey: "nav_dashboard", icon: LayoutDashboard },
   { to: "/invoices", labelKey: "nav_invoices", icon: FileText },
   { to: "/invoices/received", labelKey: "nav_received", icon: CreditCard },
@@ -88,13 +88,24 @@ export function AppShell({
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${active
+                  className={`group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-all duration-200 ${active
                     ? "bg-primary text-primary-foreground shadow-glow"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span className="font-medium">{t(item.labelKey)}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className="h-4 w-4" />
+                    <span className="font-medium">{t(item.labelKey)}</span>
+                  </div>
+                  {item.isPremium && user?.plan === "FREE" && (
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
+                      active 
+                        ? "bg-white/20 text-white border-white/30" 
+                        : "bg-primary/10 text-primary border-primary/20"
+                    }`}>
+                      PRO
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -306,6 +317,7 @@ export function AppShell({
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+
                   <DropdownMenuItem
                     onClick={handleLogout}
                     className="text-destructive focus:text-destructive cursor-pointer"
@@ -330,7 +342,7 @@ export function AppShell({
             className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-border grid grid-cols-6 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
             aria-label="Primary"
           >
-            {nav.map((item) => {
+            {nav.filter(item => !item.isPremium).map((item) => {
               const active = isNavActive(pathname, item.to);
               const Icon = item.icon;
               return (

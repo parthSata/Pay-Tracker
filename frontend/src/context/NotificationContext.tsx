@@ -39,7 +39,7 @@ const defaultSettings: NotificationSettings = {
   paymentReceived: true,
   invoiceViewed: true,
   overdueAlerts: true,
-  cashflowReport: false,
+  cashflowReport: true,
   productUpdates: false,
 };
 
@@ -50,7 +50,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [settings, setSettings] = useState<NotificationSettings>(() => {
     const saved = localStorage.getItem("pay_tracker_notif_settings");
-    return saved ? JSON.parse(saved) : defaultSettings;
+    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
   });
 
   const fetchNotifs = async () => {

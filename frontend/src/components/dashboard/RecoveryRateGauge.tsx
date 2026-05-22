@@ -2,6 +2,8 @@ import { Sparkles, HelpCircle } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CountUp } from "@/components/shared/CountUp";
 import { useRecoveryRateGauge } from "@/hooks/useRecoveryRateGauge";
+import { useAuth } from "@/auth";
+import { PremiumLockOverlay } from "@/components/shared/PremiumLockOverlay";
 
 interface RecoveryRateGaugeProps {
   invoices: any[];
@@ -9,6 +11,8 @@ interface RecoveryRateGaugeProps {
 }
 
 export function RecoveryRateGauge({ invoices, className = "" }: RecoveryRateGaugeProps) {
+  const { user } = useAuth();
+  const isFree = user?.plan === "FREE";
   const {
     recoveryRate,
     insight,
@@ -21,9 +25,10 @@ export function RecoveryRateGauge({ invoices, className = "" }: RecoveryRateGaug
 
   return (
     <div 
-      className={`rounded-2xl bg-card border border-border p-5 shadow-card hover:shadow-pop transition-all duration-300 animate-fade-up flex flex-col justify-between ${className}`}
+      className={`relative rounded-2xl bg-card border border-border p-5 shadow-card hover:shadow-pop transition-all duration-300 animate-fade-up flex flex-col justify-between ${className}`}
       style={{ animationDelay: "150ms" }}
     >
+      <div className={`flex flex-col justify-between h-full ${isFree ? "filter blur-sm select-none pointer-events-none" : ""}`}>
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -81,6 +86,13 @@ export function RecoveryRateGauge({ invoices, className = "" }: RecoveryRateGaug
         </div>
         {insight.text}
       </div>
+      </div>
+      {isFree && (
+        <PremiumLockOverlay
+          title="Recovery Rate Analytics"
+          description="Unlock deep analytics on collection performance and collection efficiency."
+        />
+      )}
     </div>
   );
 }

@@ -47,6 +47,29 @@ const createInvoice = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found");
     }
 
+    if (user.plan === "FREE") {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const endOfMonth = new Date();
+        endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+        endOfMonth.setDate(0);
+        endOfMonth.setHours(23, 59, 59, 999);
+
+        const count = await Invoice.countDocuments({
+            userId: req.user?._id,
+            createdAt: {
+                $gte: startOfMonth,
+                $lte: endOfMonth
+            }
+        });
+
+        if (count >= 10) {
+            throw new ApiError(403, "Invoice limit reached for the Free Plan (max 10 invoices/month). Please upgrade to the Paid Plan for unlimited invoices.");
+        }
+    }
+
     if (clientEmail.toLowerCase() === user.email.toLowerCase()) {
         throw new ApiError(400, "You cannot send an invoice to your own email address");
     }

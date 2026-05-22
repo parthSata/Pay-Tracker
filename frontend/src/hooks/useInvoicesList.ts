@@ -3,10 +3,12 @@ import axios from "axios";
 import { toast } from "sonner";
 import { useNotifications } from "../context/NotificationContext";
 import { formatINR, type InvoiceStatus } from "@/lib/utils";
+import { useAuth } from "../auth";
 
 export const filters: ("all" | InvoiceStatus)[] = ["all", "paid", "pending", "overdue"];
 
 export function useInvoicesList() {
+  const { user } = useAuth();
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
   const [q, setQ] = useState("");
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -73,6 +75,11 @@ export function useInvoicesList() {
   };
 
   const handleExport = () => {
+    if (user?.plan === "FREE") {
+      toast.error("Advanced CSV Export is a premium feature. Please upgrade your plan.");
+      return;
+    }
+
     if (rows.length === 0) {
       toast.error("No invoices to export");
       return;

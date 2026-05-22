@@ -1,4 +1,4 @@
-import { Camera, Mail, MapPin, Building2, CreditCard, Save, BadgeCheck, Upload, Trash2, Shield, Palette, Sparkles, PenTool, Landmark, Loader2 } from "lucide-react";
+import { Camera, Mail, MapPin, Building2, CreditCard, Save, BadgeCheck, Upload, Trash2, Shield, Palette, Sparkles, PenTool, Landmark, Loader2, Lock } from "lucide-react";
 import { useProfileFormLogic } from "@/hooks/useProfileFormLogic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ export function ProfileForm({
   setBankDetail,
   uploadFile
 }: ProfileFormProps) {
+  const isFree = user?.plan === "FREE";
   const { avatarInputRef, handleFileChange, removeImage } = useProfileFormLogic({
     setVal,
     uploadFile,
@@ -254,13 +255,18 @@ export function ProfileForm({
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="text-sm font-semibold">Enable Watermark</Label>
-                    <p className="text-xs text-muted-foreground">Superimpose logo in background</p>
+                    <Label className="text-sm font-semibold flex items-center gap-1.5">
+                      Enable Watermark
+                      {isFree && <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {isFree ? "🔒 Premium feature: upgrade to enable" : "Superimpose logo in background"}
+                    </p>
                   </div>
                   <Switch 
                     checked={formData.watermarkEnabled} 
                     onCheckedChange={(checked) => setVal("watermarkEnabled", checked)} 
-                    disabled={!formData.logoUrl}
+                    disabled={!formData.logoUrl || isFree}
                   />
                 </div>
                 <div className="space-y-2">
@@ -275,8 +281,8 @@ export function ProfileForm({
                     step="0.01"
                     value={formData.watermarkOpacity}
                     onChange={(e) => setVal("watermarkOpacity", parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                    disabled={!formData.watermarkEnabled || !formData.logoUrl}
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50"
+                    disabled={!formData.watermarkEnabled || !formData.logoUrl || isFree}
                   />
                 </div>
               </div>
@@ -294,23 +300,34 @@ export function ProfileForm({
             <div className="space-y-3">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground block">Invoice Template Style</Label>
               <div className="grid sm:grid-cols-2 gap-4">
-                {TEMPLATES.map((tmpl) => (
-                  <button
-                    key={tmpl.id}
-                    onClick={() => setVal("brandTemplate", tmpl.id)}
-                    className={`text-left p-4 rounded-xl border-2 transition-all flex flex-col justify-between h-28 hover:border-primary/50 bg-card ${
-                      formData.brandTemplate === tmpl.id ? "border-primary shadow-glow bg-primary/5" : "border-border shadow-sm"
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold text-sm flex items-center justify-between">
-                        {tmpl.name}
-                        {formData.brandTemplate === tmpl.id && <Sparkles className="h-4 w-4 text-primary animate-pulse" />}
+                {TEMPLATES.map((tmpl) => {
+                  const isLockedTemplate = isFree && tmpl.id !== "CLASSIC";
+                  return (
+                    <button
+                      key={tmpl.id}
+                      type="button"
+                      disabled={isLockedTemplate}
+                      onClick={() => setVal("brandTemplate", tmpl.id)}
+                      className={`text-left p-4 rounded-xl border-2 transition-all flex flex-col justify-between h-28 hover:border-primary/50 bg-card relative ${
+                        formData.brandTemplate === tmpl.id ? "border-primary shadow-glow bg-primary/5" : "border-border shadow-sm"
+                      } ${isLockedTemplate ? "opacity-60 cursor-not-allowed" : ""}`}
+                    >
+                      <div>
+                        <div className="font-semibold text-sm flex items-center justify-between">
+                          {tmpl.name}
+                          {isLockedTemplate ? (
+                            <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
+                          ) : (
+                            formData.brandTemplate === tmpl.id && <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                          {isLockedTemplate ? "Upgrade to Paid to unlock this template" : tmpl.desc}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{tmpl.desc}</p>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -318,30 +335,40 @@ export function ProfileForm({
             <div className="space-y-4">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground block">Brand Accent Color</Label>
               <div className="flex flex-wrap items-center gap-3">
-                {PRESET_COLORS.map((color) => (
-                  <button
-                    key={color.hex}
-                    onClick={() => {
-                      setVal("brandColor", color.hex);
-                    }}
-                    className={`h-8 px-3 rounded-full text-xs font-bold border-2 transition-all flex items-center gap-1.5 ${
-                      formData.brandColor === color.hex ? "border-foreground scale-105 shadow-md" : "border-transparent"
-                    }`}
-                    style={{ backgroundColor: color.hex, color: "#ffffff" }}
-                  >
-                    {color.name}
-                  </button>
-                ))}
+                {PRESET_COLORS.map((color) => {
+                  const isLockedColor = isFree && color.hex !== "#6366f1";
+                  return (
+                    <button
+                      key={color.hex}
+                      type="button"
+                      disabled={isLockedColor}
+                      onClick={() => {
+                        setVal("brandColor", color.hex);
+                      }}
+                      className={`h-8 px-3 rounded-full text-xs font-bold border-2 transition-all flex items-center gap-1.5 ${
+                        formData.brandColor === color.hex ? "border-foreground scale-105 shadow-md" : "border-transparent"
+                      } ${isLockedColor ? "opacity-50 cursor-not-allowed" : ""}`}
+                      style={{ backgroundColor: color.hex, color: "#ffffff" }}
+                    >
+                      {color.name}
+                      {isLockedColor && <Lock className="h-2.5 w-2.5 ml-0.5 text-white/80" />}
+                    </button>
+                  );
+                })}
                 
                 {/* Custom Color Picker */}
-                <div className="flex items-center gap-2 border border-border rounded-full px-3 py-1 shadow-sm bg-muted/20">
+                <div className={`flex items-center gap-2 border border-border rounded-full px-3 py-1 shadow-sm bg-muted/20 ${isFree ? "opacity-50 cursor-not-allowed select-none" : ""}`}>
                   <input
                     type="color"
+                    disabled={isFree}
                     value={formData.brandColor}
                     onChange={(e) => setVal("brandColor", e.target.value)}
-                    className="w-6 h-6 rounded-full border-none cursor-pointer bg-transparent"
+                    className="w-6 h-6 rounded-full border-none cursor-pointer bg-transparent disabled:cursor-not-allowed"
                   />
-                  <span className="text-xs font-semibold uppercase">{formData.brandColor}</span>
+                  <span className="text-xs font-semibold uppercase flex items-center gap-1.5">
+                    {formData.brandColor}
+                    {isFree && <Lock className="h-3 w-3 text-muted-foreground/60" />}
+                  </span>
                 </div>
               </div>
             </div>
@@ -418,18 +445,23 @@ export function ProfileForm({
             <div className="space-y-4">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground block">Signature Type</Label>
               <div className="flex flex-wrap gap-4">
-                {["NONE", "TYPED", "UPLOAD"].map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setVal("signatureType", type)}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
-                      formData.signatureType === type ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:bg-muted/30"
-                    }`}
-                  >
-                    {type === "NONE" ? "None / Disabled" : type === "TYPED" ? "Type Signature (Cursive)" : "Upload Image"}
-                  </button>
-                ))}
+                {["NONE", "TYPED", "UPLOAD"].map((type) => {
+                  const isLockedSig = isFree && type !== "NONE";
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      disabled={isLockedSig}
+                      onClick={() => setVal("signatureType", type)}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold border-2 transition-all flex items-center gap-1.5 ${
+                        formData.signatureType === type ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:bg-muted/30"
+                      } ${isLockedSig ? "opacity-55 cursor-not-allowed" : ""}`}
+                    >
+                      {type === "NONE" ? "None / Disabled" : type === "TYPED" ? "Type Signature (Cursive)" : "Upload Image"}
+                      {isLockedSig && <Lock className="h-3 w-3 text-muted-foreground/60" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

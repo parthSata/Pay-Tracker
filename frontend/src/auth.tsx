@@ -9,6 +9,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  plan?: "FREE" | "PAID";
   businessName?: string;
   upiId?: string;
   gstEnabled?: boolean;
@@ -45,6 +46,7 @@ interface AuthContextType {
   register: (data: any) => Promise<void>;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
+  toggleSubscription: () => Promise<void>;
   setUser: (user: User | null) => void;
   isLoading: boolean;
 }
@@ -178,8 +180,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const toggleSubscription = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("pay_tracker_token");
+      const response = await axios.post(`${API_URL}/users/subscribe`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      const updatedUser = response.data.data;
+      setUser(updatedUser);
+      localStorage.setItem("pay_tracker_user", JSON.stringify(updatedUser));
+      toast.success(`Successfully switched to ${updatedUser.plan} plan!`);
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Failed to update subscription";
+      toast.error(message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, isAuthenticated: !!user, login, verify2FA, register, logout, updateUser, isLoading }}>
+    <AuthContext.Provider value={{ user, setUser, isAuthenticated: !!user, login, verify2FA, register, logout, updateUser, toggleSubscription, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
