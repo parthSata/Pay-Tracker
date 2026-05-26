@@ -8,6 +8,7 @@ interface CashPositionHeaderProps {
   insightTone: "info" | "warning" | "success";
   mode: "receivables" | "payables";
   setMode: (mode: "receivables" | "payables") => void;
+  showInsight?: boolean;
 }
 
 export function CashPositionHeader({
@@ -15,6 +16,7 @@ export function CashPositionHeader({
   insightTone,
   mode,
   setMode,
+  showInsight = true,
 }: CashPositionHeaderProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -61,40 +63,40 @@ export function CashPositionHeader({
           </button>
         </div>
       </div>
-
       {/* Dynamic Cash Health Message */}
-      {isFree ? (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-border/80 bg-accent/20 p-3.5 text-xs text-muted-foreground animate-fade-in">
-          <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-muted-foreground/60 shrink-0" />
-            <span>Upgrade to Paid to unlock dynamic payment insights and recommendations.</span>
+      {showInsight && (
+        isFree ? (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-border/80 bg-accent/20 p-3.5 text-xs text-muted-foreground animate-fade-in">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+              <span>Upgrade to Paid to unlock dynamic payment insights and recommendations.</span>
+            </div>
+            <Link
+              to="/settings"
+              search={{ tab: "billing" }}
+              className="text-primary hover:underline font-semibold shrink-0"
+            >
+              Upgrade
+            </Link>
           </div>
-          <Link
-            to="/settings"
-            search={{ tab: "billing" }}
-            className="text-primary hover:underline font-semibold shrink-0"
+        ) : (
+          <div
+            className={`mt-4 flex items-start gap-2.5 rounded-xl border p-3.5 text-xs transition-all duration-300 ${
+              insightTone === "warning"
+                ? "bg-destructive-soft/30 border-destructive/20 text-destructive dark:text-red-300"
+                : insightTone === "info"
+                ? "bg-primary-soft/30 border-primary/20 text-primary"
+                : "bg-success-soft/30 border-success/20 text-success dark:text-green-300"
+            }`}
           >
-            Upgrade
-          </Link>
-        </div>
-      ) : (
-        <div
-          className={`mt-4 flex items-start gap-2.5 rounded-xl border p-3.5 text-xs transition-all duration-300 ${
-            insightTone === "warning"
-              ? "bg-destructive-soft/30 border-destructive/20 text-destructive dark:text-red-300"
-              : insightTone === "info"
-              ? "bg-primary-soft/30 border-primary/20 text-primary"
-              : "bg-success-soft/30 border-success/20 text-success dark:text-green-300"
-          }`}
-        >
-          {insightTone === "warning" ? (
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-          ) : (
-            <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
-          )}
-          <span className="leading-relaxed font-medium">{insightText}</span>
-        </div>
-      )}
-    </div>
+            {insightTone === "warning" ? (
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            ) : (
+              <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
+            )}
+            <span className="leading-relaxed font-medium">{insightText}</span>
+          </div>
+        )
+      )}    </div>
   );
 }

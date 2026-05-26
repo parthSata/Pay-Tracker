@@ -38,9 +38,9 @@ export function LoginForm({ form, onSubmit, showResend, resending, handleResend,
           <form onSubmit={onVerify2FA} className="space-y-4">
             <div className="space-y-2">
               <Label>Authenticator Code</Label>
-              <Input 
+              <Input
                 autoFocus
-                placeholder="123456" 
+                placeholder="123456"
                 maxLength={6}
                 value={otpToken}
                 onChange={(e) => setOtpToken?.(e.target.value.replace(/[^0-9]/g, ''))}
@@ -99,9 +99,9 @@ export function LoginForm({ form, onSubmit, showResend, resending, handleResend,
 
             {showResend && (
               <div className="pt-2 animate-in fade-in slide-in-from-top-1 duration-300">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   className="w-full border-primary/30 text-primary hover:bg-primary/5"
                   onClick={handleResend}
                   disabled={resending}
@@ -118,12 +118,6 @@ export function LoginForm({ form, onSubmit, showResend, resending, handleResend,
           Don't have an account?{" "}
           <Link to="/register" className="text-primary hover:underline font-medium">
             Register
-          </Link>
-        </div>
-        <div className="text-sm text-center text-muted-foreground border-t pt-4 mt-2">
-          Are you an admin?{" "}
-          <Link to="/admin/login" className="text-primary hover:underline font-medium">
-            Admin Login
           </Link>
         </div>
       </CardFooter>

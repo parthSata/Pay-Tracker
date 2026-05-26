@@ -1,6 +1,7 @@
 import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { Footer } from "@/components/layout/Footer";
 import { ShieldCheck, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoiceDetails } from "@/components/invoices/InvoiceDetails";
@@ -61,7 +62,7 @@ function DashboardPay() {
   }, [status, router]);
 
   return (
-    <AppShell>
+    <AppShell hideFooter={true}>
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Link to="/invoices/received" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -91,10 +92,12 @@ function DashboardPay() {
           </div>
           <PaymentSection status={status} qrUrl={qrUrl} copy={copy} copied={copied} upiId={upiId} inv={invoice} />
         </div>
+
+        <Footer footerText={invoice?.sme?.footerText || invoice?.footerText} />
       </div>
 
       {/* Hidden print container for capturing white professional A4 layout in PDF */}
-      <div style={{ position: "absolute", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
+      <div style={{ position: "fixed", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
         <PrintInvoiceTemplate id="invoice-print-container" invoice={invoice} qrCodeUrl={qrUrl} />
       </div>
     </AppShell>

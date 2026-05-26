@@ -82,6 +82,24 @@ const invoiceSchema = new Schema(
         paidAt: {
             type: Date,
         },
+        // Set when a payer clicks an online payment option (e.g. Razorpay link).
+        // While this timestamp is fresh (<= PAYMENT_LOCK_WINDOW_MS) and status is still PENDING,
+        // the public payment view enters a "Verifying" lock to prevent duplicate payments.
+        paymentInitiatedAt: {
+            type: Date,
+        },
+        // Captured whenever a Razorpay payment attempt fails (via webhook or polling).
+        // The frontend uses this to show a "Payment Failed — Try Again" state instead of
+        // staying stuck in the verifying spinner.
+        lastPaymentFailureAt: {
+            type: Date,
+        },
+        lastPaymentFailureReason: {
+            type: String,
+        },
+        lastPaymentFailureCode: {
+            type: String,
+        },
         paymentProof: {
             type: String, // Cloudinary URL
         },

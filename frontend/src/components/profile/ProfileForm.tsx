@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Camera, Mail, MapPin, Building2, CreditCard, Save, BadgeCheck, Upload, Trash2, Shield, Palette, Sparkles, PenTool, Landmark, Loader2, Lock } from "lucide-react";
 import { useProfileFormLogic } from "@/hooks/useProfileFormLogic";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,8 @@ export function ProfileForm({
     setVal,
     uploadFile,
   });
+
+  const [activeTab, setActiveTab] = useState<"personal" | "business">("personal");
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fade-up pb-16">
@@ -153,10 +156,37 @@ export function ProfileForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Left Column: Basic Information */}
-        <div className="md:col-span-1 space-y-6">
-          {/* Personal */}
+      {/* Tab Navigation */}
+      <div className="flex border border-border bg-card/30 backdrop-blur-md p-1.5 rounded-2xl gap-2 max-w-md">
+        <button
+          type="button"
+          onClick={() => setActiveTab("personal")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
+            activeTab === "personal"
+              ? "bg-primary text-primary-foreground shadow-glow scale-[1.02]"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          }`}
+        >
+          <Mail className="h-4 w-4" />
+          Personal Account
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("business")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-300 ${
+            activeTab === "business"
+              ? "bg-primary text-primary-foreground shadow-glow scale-[1.02]"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          }`}
+        >
+          <Building2 className="h-4 w-4" />
+          Business Branding
+        </button>
+      </div>
+
+      {activeTab === "personal" ? (
+        <div className="max-w-2xl mx-auto space-y-6 animate-fade-in w-full">
+          {/* Personal Info */}
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
             <h3 className="text-base font-semibold flex items-center gap-2">
               <Mail className="h-4.5 w-4.5 text-primary" /> Personal Info
@@ -173,42 +203,46 @@ export function ProfileForm({
               </div>
             </div>
           </section>
-
-          {/* Business */}
-          <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-            <h3 className="text-base font-semibold flex items-center gap-2">
-              <Building2 className="h-4.5 w-4.5 text-primary" /> Business Details
-            </h3>
-            <Separator />
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Business Name</Label>
-                <Input name="businessName" value={formData.businessName} onChange={handleChange} maxLength={50} className="h-10 rounded-xl" />
-              </div>
-            </div>
-          </section>
-
-          {/* Payment */}
-          <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-            <h3 className="text-base font-semibold flex items-center gap-2">
-              <CreditCard className="h-4.5 w-4.5 text-primary" /> UPI Payment
-            </h3>
-            <Separator />
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">UPI ID</Label>
-                <Input name="upiId" value={formData.upiId} onChange={handleChange} placeholder="merchant@upi" maxLength={50} className="h-10 rounded-xl" />
-              </div>
-              <div className="flex items-start gap-2.5 rounded-xl bg-primary-soft text-primary p-3 text-xs">
-                <MapPin className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-                <p>Clients scan the QR code generated from your UPI ID directly on your invoice pay page.</p>
-              </div>
-            </div>
-          </section>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fade-in w-full">
+          {/* Left Column: Basic Information */}
+          <div className="md:col-span-1 space-y-6">
+            {/* Business Details */}
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <Building2 className="h-4.5 w-4.5 text-primary" /> Business Details
+              </h3>
+              <Separator />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Business Name</Label>
+                  <Input name="businessName" value={formData.businessName} onChange={handleChange} maxLength={50} className="h-10 rounded-xl" />
+                </div>
+              </div>
+            </section>
 
-        {/* Right Column: Branding & Customization */}
-        <div className="md:col-span-2 space-y-8">
+            {/* Payment */}
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <CreditCard className="h-4.5 w-4.5 text-primary" /> UPI Payment
+              </h3>
+              <Separator />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">UPI ID</Label>
+                  <Input name="upiId" value={formData.upiId} onChange={handleChange} placeholder="merchant@upi" maxLength={50} className="h-10 rounded-xl" />
+                </div>
+                <div className="flex items-start gap-2.5 rounded-xl bg-primary-soft text-primary p-3 text-xs">
+                  <MapPin className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+                  <p>Clients scan the QR code generated from your UPI ID directly on your invoice pay page.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          {/* Right Column: Branding & Customization */}
+          <div className="md:col-span-2 space-y-8">
           {/* Logo & Watermark Section */}
           <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-6">
             <h3 className="text-base font-semibold flex items-center gap-2">
@@ -568,6 +602,7 @@ export function ProfileForm({
           </section>
         </div>
       </div>
+      )}
     </div>
   );
 }

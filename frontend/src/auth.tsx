@@ -77,6 +77,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("pay_tracker_user");
       setUser(null);
     }
+
+    // Set up interceptor to handle token expiration/invalid errors (401 Unauthorized)
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.status === 401) {
+          const message = error.response.data?.message || "";
+          const isTokenError = 
+            message.toLowerCase().includes("token") || 
+            message.toLowerCase().includes("unauthorized request") ||
+            message.toLowerCase().includes("jwt");
+
+          if (isTokenError) {
+            localStorage.removeItem("pay_tracker_user");
+            localStorage.removeItem("pay_tracker_token");
+            setUser(null);
+            
+            const isAdminPath = window.location.pathname.startsWith("/admin");
+            const targetPath = isAdminPath ? "/admin/login" : "/login";
+            
+            if (window.location.pathname !== targetPath) {
+              window.location.href = targetPath;
+            }
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

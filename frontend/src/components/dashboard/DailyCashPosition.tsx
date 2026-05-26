@@ -39,6 +39,7 @@ export function DailyCashPosition({ invoices, receivedInvoices = [] }: DailyCash
         insightTone={displayInsightTone}
         mode={mode}
         setMode={setMode}
+        showInsight={totalExpectedToday > 0 || totalOverdue > 0 || totalIncomingWeek > 0}
       />
 
       {/* Metric Cards Grid */}

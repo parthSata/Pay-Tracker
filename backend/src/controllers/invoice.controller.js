@@ -1,4 +1,5 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
+import mongoose from "mongoose";
 import { ApiError } from "../utils/ApiError.js";
 import { Invoice } from "../models/invoice.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -29,6 +30,76 @@ const getRazorpayInstance = () => {
         });
     }
     return razorpay;
+};
+
+// Verification lock window: after a payer clicks "Pay via Razorpay", we treat the
+// invoice as "verifying" for this duration to prevent duplicate payments — even if
+// the payer never returns to the app or reloads the tab.
+const PAYMENT_LOCK_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+const isPaymentLocked = (invoice) => {
+    if (!invoice?.paymentInitiatedAt || invoice.status === "PAID") return false;
+    const elapsed = Date.now() - new Date(invoice.paymentInitiatedAt).getTime();
+    return elapsed >= 0 && elapsed < PAYMENT_LOCK_WINDOW_MS;
+};
+
+/**
+ * Inspect a Razorpay paymentLink's `payments[]` array and decide whether the most
+ * recent attempt (since the verification lock engaged) has failed. We never mark
+ * "failed" if a successful attempt exists — payments can have multiple attempts
+ * before one succeeds, and the success is what matters.
+ *
+ * Returns { failed, reason, code } where `failed === true` means the UI should
+ * exit the verifying state and prompt the payer to retry.
+ */
+const evaluateRazorpayFailure = (plink, paymentInitiatedAt) => {
+    if (!plink || !Array.isArray(plink.payments) || plink.payments.length === 0) {
+        return { failed: false, reason: null, code: null };
+    }
+    const initiatedMs = paymentInitiatedAt ? new Date(paymentInitiatedAt).getTime() : 0;
+    // Razorpay returns `created_at` as unix seconds.
+    const relevant = plink.payments.filter((p) => {
+        const createdMs = (p?.created_at || 0) * 1000;
+        // 5s grace window covers clock-skew between client → server → Razorpay.
+        return createdMs >= initiatedMs - 5000;
+    });
+    if (relevant.length === 0) return { failed: false, reason: null, code: null };
+
+    const hasSuccess = relevant.some((p) => p.status === "captured" || p.status === "authorized");
+    if (hasSuccess) return { failed: false, reason: null, code: null };
+
+    const latestFailed = relevant
+        .filter((p) => p.status === "failed")
+        .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
+    if (!latestFailed) return { failed: false, reason: null, code: null };
+
+    return {
+        failed: true,
+        reason: latestFailed.error_description || latestFailed.error_reason || "Payment could not be completed",
+        code: latestFailed.error_code || null,
+    };
+};
+
+/**
+ * Cancel the Razorpay payment link so the URL can no longer accept payments.
+ * This is critical after a successful payment to prevent the payer from accidentally
+ * paying twice via a stale link/bookmark/email.
+ * Silently no-ops if Razorpay is not configured or the link cannot be cancelled
+ * (e.g., already cancelled/paid — Razorpay treats those as terminal states).
+ */
+const cancelRazorpayLinkSafe = async (razorpayLinkId) => {
+    if (!razorpayLinkId) return;
+    const instance = getRazorpayInstance();
+    if (!instance) return;
+    try {
+        await instance.paymentLink.cancel(razorpayLinkId);
+    } catch (error) {
+        // Razorpay returns BAD_REQUEST when the link is already in a terminal state — that's fine.
+        const code = error?.statusCode || error?.error?.code;
+        if (code !== 400 && code !== "BAD_REQUEST_ERROR") {
+            console.error(`Failed to cancel Razorpay link ${razorpayLinkId}:`, error?.error?.description || error?.message || error);
+        }
+    }
 };
 
 const createInvoice = asyncHandler(async (req, res) => {
@@ -135,12 +206,23 @@ const createInvoice = asyncHandler(async (req, res) => {
     // Generate public access token
     const token = crypto.randomBytes(32).toString("hex");
 
+    // Pre-generate MongoDB ObjectId to supply to Razorpay callback URL
+    const invoiceId = new mongoose.Types.ObjectId();
+    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
+
     // Generate Razorpay Payment Link
     let paymentLink = "";
     let razorpayLinkId;
     const razorpayInstance = getRazorpayInstance();
     if (razorpayInstance) {
         try {
+            // Razorpay accepts expire_by as a unix-second timestamp; min 15min, max 1yr.
+            // We expire 30 days after the invoice due date (or 60 days from now, whichever is later)
+            // so stale links can't accept payments after the invoice cycle has wrapped up.
+            const dueMs = new Date(dueDate).getTime();
+            const sixtyDaysFromNow = Date.now() + 60 * 24 * 60 * 60 * 1000;
+            const expireBy = Math.floor(Math.max(dueMs + 30 * 24 * 60 * 60 * 1000, sixtyDaysFromNow) / 1000);
+
             const razorpayResponse = await razorpayInstance.paymentLink.create({
                 amount: Math.round(totalAmount * 100), // amount in paise, inclusive of GST
                 currency: "INR",
@@ -155,9 +237,12 @@ const createInvoice = asyncHandler(async (req, res) => {
                     email: false,
                 },
                 reminder_enable: true,
+                expire_by: expireBy,
                 notes: {
                     invoice_number: invoiceNumber,
-                }
+                },
+                callback_url: `${frontendUrl}/pay/${invoiceId}`,
+                callback_method: "get"
             });
             paymentLink = razorpayResponse.short_url;
             razorpayLinkId = razorpayResponse.id;
@@ -167,6 +252,7 @@ const createInvoice = asyncHandler(async (req, res) => {
     }
 
     const invoice = await Invoice.create({
+        _id: invoiceId,
         userId: req.user?._id,
         clientName,
         clientEmail,
@@ -287,7 +373,9 @@ const getInvoices = asyncHandler(async (req, res) => {
                         invoices[i].status = "PAID";
                         invoices[i].paidAt = new Date();
                         await invoices[i].save();
-                        
+                        // Invalidate the link so the same URL can't be used to pay again.
+                        await cancelRazorpayLinkSafe(invoices[i].razorpayLinkId);
+
                         await ActivityLog.create({
                             userId: invoices[i].userId,
                             invoiceId: invoices[i]._id,
@@ -340,6 +428,8 @@ const getInvoiceById = asyncHandler(async (req, res) => {
                     invoice.status = "PAID";
                     invoice.paidAt = new Date();
                     await invoice.save();
+                    // Invalidate the link so the same URL can't be used to pay again.
+                    await cancelRazorpayLinkSafe(invoice.razorpayLinkId);
                     
                     await ActivityLog.create({
                         userId: invoice.userId._id,
@@ -370,6 +460,24 @@ const getInvoiceById = asyncHandler(async (req, res) => {
     const invoiceData = invoice.toObject();
     invoiceData.sme = invoiceData.userId;
     delete invoiceData.userId;
+
+    // Expose verification-lock state to the public payer view.
+    // The frontend uses these to render the "Verifying your payment..." UI and hide
+    // duplicate payment options, even across page reloads or fresh tabs.
+    invoiceData.isPaymentLocked = isPaymentLocked(invoice);
+    invoiceData.paymentLockWindowMs = PAYMENT_LOCK_WINDOW_MS;
+    // Only surface failure metadata when the failure is fresh AND not already paid.
+    // A failure older than the lock window is stale (e.g., the payer already retried
+    // successfully or moved on) and shouldn't clutter the UI.
+    const failureFresh =
+        invoice.lastPaymentFailureAt &&
+        invoice.status !== "PAID" &&
+        Date.now() - new Date(invoice.lastPaymentFailureAt).getTime() < PAYMENT_LOCK_WINDOW_MS;
+    if (failureFresh) {
+        invoiceData.lastPaymentFailureAt = invoice.lastPaymentFailureAt;
+        invoiceData.lastPaymentFailureReason = invoice.lastPaymentFailureReason;
+        invoiceData.lastPaymentFailureCode = invoice.lastPaymentFailureCode;
+    }
 
     // Log viewed event if not already viewed in the last 24 hours (prevents duplicates)
     // We only log if it's not the owner
@@ -432,6 +540,8 @@ const searchInvoice = asyncHandler(async (req, res) => {
                     invoice.status = "PAID";
                     invoice.paidAt = new Date();
                     await invoice.save();
+                    // Invalidate the link so the same URL can't be used to pay again.
+                    await cancelRazorpayLinkSafe(invoice.razorpayLinkId);
                 }
             } catch (error) {
                 console.error(`Failed to fetch status for ${invoice.invoiceNumber}:`, error);
@@ -820,6 +930,322 @@ const sendManualReminder = asyncHandler(async (req, res) => {
     );
 });
 
+const handleRazorpayWebhook = asyncHandler(async (req, res) => {
+    const signature = req.headers["x-razorpay-signature"];
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || "your_webhook_secret";
+
+    if (!signature) {
+        throw new ApiError(400, "Webhook signature missing");
+    }
+
+    // Verify signature
+    const shasum = crypto.createHmac("sha256", webhookSecret);
+    shasum.update(req.rawBody);
+    const digest = shasum.digest("hex");
+
+    if (digest !== signature) {
+        throw new ApiError(400, "Invalid webhook signature");
+    }
+
+    const event = req.body.event;
+    console.log(`[Webhook] Received Razorpay event: ${event}`);
+
+    const payload = req.body.payload || {};
+    const paymentLinkEntity = payload.payment_link?.entity;
+    const paymentEntity = payload.payment?.entity;
+    const razorpayLinkId = paymentLinkEntity?.id || paymentEntity?.payment_link_id;
+
+    // Success path — payment captured / link marked paid.
+    if (event === "payment_link.paid" || event === "payment.captured") {
+        if (razorpayLinkId) {
+            const invoice = await Invoice.findOne({ razorpayLinkId });
+            if (invoice && invoice.status !== "PAID") {
+                invoice.status = "PAID";
+                invoice.paidAt = new Date();
+                if (paymentEntity?.method) {
+                    invoice.paymentMethod = paymentEntity.method.toUpperCase();
+                }
+                
+                invoice.history.push({
+                    action: "PAID",
+                    details: `Payment confirmed via webhook (${paymentEntity?.id || "N/A"})`
+                });
+                await invoice.save();
+                // Invalidate the link so the same URL can't be used to pay again.
+                await cancelRazorpayLinkSafe(invoice.razorpayLinkId);
+
+                await ActivityLog.create({
+                    userId: invoice.userId,
+                    invoiceId: invoice._id,
+                    action: "PAYMENT_RECEIVED",
+                    details: `Payment received via Razorpay for ${invoice.invoiceNumber}`
+                });
+
+                try {
+                    await Notification.create({
+                        userId: invoice.userId,
+                        title: "Payment Confirmed (Webhook)",
+                        description: `Payment of ₹${invoice.totalAmount || invoice.amount} confirmed for invoice ${invoice.invoiceNumber}.`,
+                        type: "success",
+                        category: "payment"
+                    });
+                } catch (err) {
+                    console.error("Failed to create webhook payment notification:", err.message);
+                }
+            }
+        }
+    }
+
+    // Failure path — Razorpay fires `payment.failed` whenever a payment attempt fails.
+    // We use this to instantly exit the "Verifying" state on the payer page rather
+    // than waiting for the polling loop to discover the failure.
+    if (event === "payment.failed") {
+        if (razorpayLinkId) {
+            const invoice = await Invoice.findOne({ razorpayLinkId });
+            if (invoice && invoice.status !== "PAID") {
+                const reason = paymentEntity?.error_description || paymentEntity?.error_reason || "Payment could not be completed";
+                const code = paymentEntity?.error_code || null;
+
+                invoice.lastPaymentFailureAt = new Date();
+                invoice.lastPaymentFailureReason = reason;
+                invoice.lastPaymentFailureCode = code;
+                // Release the verification lock so the payer can immediately retry.
+                invoice.paymentInitiatedAt = undefined;
+                invoice.history.push({
+                    action: "PAYMENT_FAILED",
+                    details: `Razorpay payment failed: ${reason}${code ? ` (${code})` : ""}`
+                });
+                await invoice.save();
+
+                try {
+                    await Notification.create({
+                        userId: invoice.userId,
+                        title: "Payment Attempt Failed",
+                        description: `A payment attempt for invoice ${invoice.invoiceNumber} failed: ${reason}.`,
+                        type: "warning",
+                        category: "payment"
+                    });
+                } catch (err) {
+                    console.error("Failed to create webhook failure notification:", err.message);
+                }
+            }
+        }
+    }
+
+    return res.status(200).json({ status: "ok" });
+});
+
+const verifyPayment = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const invoice = await Invoice.findById(id);
+    if (!invoice) {
+        throw new ApiError(404, "Invoice not found");
+    }
+
+    if (invoice.status === "PAID") {
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                { verified: true, status: "PAID", isPaymentLocked: false },
+                "Payment verified successfully"
+            )
+        );
+    }
+
+    let paymentFailed = false;
+    let failureReason = null;
+    let failureCode = null;
+    let linkExpired = false;
+
+    // If it's pending, let's fetch the latest status from Razorpay's API
+    if (invoice.razorpayLinkId) {
+        const razorpayInstance = getRazorpayInstance();
+        if (razorpayInstance) {
+            try {
+                const plink = await razorpayInstance.paymentLink.fetch(invoice.razorpayLinkId);
+                if (plink.status === "paid") {
+                    invoice.status = "PAID";
+                    invoice.paidAt = new Date();
+                    invoice.history.push({
+                        action: "PAID",
+                        details: `Payment verified via direct API check`
+                    });
+                    await invoice.save();
+                    // Invalidate the link so the same URL can't be used to pay again.
+                    await cancelRazorpayLinkSafe(invoice.razorpayLinkId);
+
+                    await ActivityLog.create({
+                        userId: invoice.userId,
+                        invoiceId: invoice._id,
+                        action: "PAYMENT_RECEIVED",
+                        details: `Payment verified via direct check for ${invoice.invoiceNumber}`
+                    });
+
+                    try {
+                        await Notification.create({
+                            userId: invoice.userId,
+                            title: "Payment Verified",
+                            description: `Payment of ₹${invoice.totalAmount || invoice.amount} verified for invoice ${invoice.invoiceNumber}.`,
+                            type: "success",
+                            category: "payment"
+                        });
+                    } catch (err) {
+                        console.error("Failed to create verified notification:", err.message);
+                    }
+
+                    return res.status(200).json(
+                        new ApiResponse(
+                            200,
+                            { verified: true, status: "PAID", isPaymentLocked: false },
+                            "Payment verified successfully"
+                        )
+                    );
+                }
+
+                // Surface "link expired" so the UI can recommend an alternate channel.
+                if (plink.status === "expired" || plink.status === "cancelled") {
+                    linkExpired = true;
+                }
+
+                // Detect failed attempts since the lock engaged. We DO NOT cancel the
+                // Razorpay link on failure — Razorpay's own UI lets the payer retry.
+                // We just exit the verifying state so the payer isn't stuck.
+                const failure = evaluateRazorpayFailure(plink, invoice.paymentInitiatedAt);
+                if (failure.failed) {
+                    paymentFailed = true;
+                    failureReason = failure.reason;
+                    failureCode = failure.code;
+                    // Only persist if it's a new failure we haven't already recorded.
+                    if (
+                        !invoice.lastPaymentFailureAt ||
+                        Date.now() - new Date(invoice.lastPaymentFailureAt).getTime() > 30 * 1000
+                    ) {
+                        invoice.lastPaymentFailureAt = new Date();
+                        invoice.lastPaymentFailureReason = failureReason;
+                        invoice.lastPaymentFailureCode = failureCode;
+                        // Clearing the lock lets the payer retry from PayTracker too.
+                        invoice.paymentInitiatedAt = undefined;
+                        invoice.history.push({
+                            action: "PAYMENT_FAILED",
+                            details: `Razorpay payment failed: ${failureReason}${failureCode ? ` (${failureCode})` : ""}`
+                        });
+                        await invoice.save();
+                    }
+                }
+            } catch (error) {
+                console.error(`Failed to fetch Razorpay status for ${invoice.invoiceNumber}:`, error);
+            }
+        }
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                verified: false,
+                status: invoice.status,
+                isPaymentLocked: isPaymentLocked(invoice),
+                paymentFailed,
+                failureReason,
+                failureCode,
+                linkExpired,
+                lastPaymentFailureAt: invoice.lastPaymentFailureAt,
+                paymentInitiatedAt: invoice.paymentInitiatedAt,
+                paymentLockWindowMs: PAYMENT_LOCK_WINDOW_MS,
+            },
+            paymentFailed ? "Payment failed — please try again" : "Payment not yet confirmed"
+        )
+    );
+});
+
+/**
+ * Called by the public payer page right before opening the Razorpay link (or starting
+ * any online payment flow). Stamps `paymentInitiatedAt` so every subsequent fetch of
+ * this invoice sees the verification lock — preventing duplicate payments via UPI QR,
+ * UPI ID copy, or a second Razorpay click.
+ */
+const initiatePayment = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const invoice = await Invoice.findById(id);
+    if (!invoice) {
+        throw new ApiError(404, "Invoice not found");
+    }
+
+    if (invoice.status === "PAID") {
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                { status: "PAID", isPaymentLocked: false },
+                "Invoice already paid"
+            )
+        );
+    }
+
+    // Only refresh the stamp if we don't already have an active lock — keeps the
+    // original timeout window honest if the payer clicks again.
+    if (!isPaymentLocked(invoice)) {
+        invoice.paymentInitiatedAt = new Date();
+        invoice.history.push({
+            action: "PAYMENT_INITIATED",
+            details: "Payer initiated online payment — verification lock engaged."
+        });
+        await invoice.save();
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                status: invoice.status,
+                isPaymentLocked: true,
+                paymentInitiatedAt: invoice.paymentInitiatedAt,
+                paymentLockWindowMs: PAYMENT_LOCK_WINDOW_MS,
+            },
+            "Payment initiated — verifying"
+        )
+    );
+});
+
+/**
+ * Lets the payer manually clear the verification lock if they abandoned the payment
+ * flow (e.g. closed the Razorpay tab without paying). The frontend only surfaces this
+ * action after a soft timeout to discourage panic-resets that could lead to duplicate
+ * payments. We refuse if the invoice has actually been paid.
+ */
+const resetPaymentLock = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const invoice = await Invoice.findById(id);
+    if (!invoice) {
+        throw new ApiError(404, "Invoice not found");
+    }
+
+    if (invoice.status === "PAID") {
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                { status: "PAID", isPaymentLocked: false },
+                "Invoice already paid"
+            )
+        );
+    }
+
+    invoice.paymentInitiatedAt = undefined;
+    invoice.history.push({
+        action: "PAYMENT_LOCK_RESET",
+        details: "Payer cleared the verification lock manually."
+    });
+    await invoice.save();
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { status: invoice.status, isPaymentLocked: false },
+            "Verification lock cleared"
+        )
+    );
+});
+
 export {
     createInvoice,
     getInvoices,
@@ -830,5 +1256,9 @@ export {
     uploadPaymentProof,
     getReceivedInvoices,
     getClientRiskAnalytics,
-    sendManualReminder
+    sendManualReminder,
+    handleRazorpayWebhook,
+    verifyPayment,
+    initiatePayment,
+    resetPaymentLock
 };

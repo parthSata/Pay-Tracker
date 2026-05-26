@@ -9,7 +9,11 @@ import {
     uploadPaymentProof,
     getReceivedInvoices,
     getClientRiskAnalytics,
-    sendManualReminder
+    sendManualReminder,
+    handleRazorpayWebhook,
+    verifyPayment,
+    initiatePayment,
+    resetPaymentLock
 } from "../controllers/invoice.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -18,6 +22,7 @@ const router = Router();
 
 // Public Routes (No Auth)
 router.route("/search").get(searchInvoice);
+router.route("/webhook/razorpay").post(handleRazorpayWebhook);
 
 // Protected Routes (Require Auth)
 router.route("/stats").get(verifyJWT, getDashboardStats);
@@ -28,6 +33,9 @@ router.route("/").post(verifyJWT, createInvoice).get(verifyJWT, getInvoices);
 // Public dynamic routes
 router.route("/:id").get(getInvoiceById);
 router.route("/:id/status").patch(updateInvoiceStatus);
+router.route("/:id/verify-payment").get(verifyPayment);
+router.route("/:id/initiate-payment").post(initiatePayment);
+router.route("/:id/reset-payment-lock").post(resetPaymentLock);
 
 // Protected dynamic routes
 router.route("/:id/proof").post(upload.single("proof"), uploadPaymentProof);

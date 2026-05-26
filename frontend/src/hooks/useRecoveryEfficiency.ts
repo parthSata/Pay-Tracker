@@ -29,7 +29,7 @@ export function useRecoveryEfficiency({ invoices }: UseRecoveryEfficiencyProps) 
         .filter((inv) => inv.status === "PAID")
         .reduce((acc, curr) => acc + (curr.totalAmount || curr.amount), 0);
 
-      const efficiency = monthInvoiced > 0 ? Math.round((monthPaid / monthInvoiced) * 100) : 100;
+      const efficiency = monthInvoiced > 0 ? Math.round((monthPaid / monthInvoiced) * 100) : 0;
 
       result.push({
         label: monthYearLabel,

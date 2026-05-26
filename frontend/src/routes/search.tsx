@@ -58,7 +58,7 @@ function InvoiceSearchPage() {
               qrCodeUrl={qrCodeUrl}
             />
             {/* Hidden print container for capturing white professional A4 layout in PDF */}
-            <div style={{ position: "absolute", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
+            <div style={{ position: "fixed", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
               <PrintInvoiceTemplate id="invoice-print-container" invoice={invoice} qrCodeUrl={qrCodeUrl} />
             </div>
           </>

@@ -2,8 +2,18 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import axios from "axios";
 import { usePublicPay } from "@/hooks/usePublicPay";
 import { PublicPayView } from "@/components/invoices/PublicPayView";
+import { z } from "zod";
+
+const paySearchSchema = z.object({
+  razorpay_payment_id: z.string().optional(),
+  razorpay_payment_link_id: z.string().optional(),
+  razorpay_payment_link_reference_id: z.string().optional(),
+  razorpay_payment_link_status: z.string().optional(),
+  razorpay_signature: z.string().optional(),
+});
 
 export const Route = createFileRoute("/pay/$id")({
+  validateSearch: paySearchSchema,
   loader: async ({ params }) => {
     try {
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/invoices/${params.id}`);
@@ -37,7 +47,8 @@ export const Route = createFileRoute("/pay/$id")({
 
 function PublicPay() {
   const { invoice, logs } = Route.useLoaderData();
-  const publicPayProps = usePublicPay(invoice, logs);
+  const search = Route.useSearch();
+  const publicPayProps = usePublicPay(invoice, logs, search);
 
   return <PublicPayView {...publicPayProps} invoice={invoice} />;
 }
