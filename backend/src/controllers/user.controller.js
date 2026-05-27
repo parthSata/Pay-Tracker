@@ -39,18 +39,36 @@ const registerUser = asyncHandler( async (req, res) => {
 
     // Verify if the email actually exists (MX records and Syntax)
     try {
+        console.log(`[Email Validator] Starting validation for email: ${email}`);
         const { valid, reason, validators } = await emailValidator({
             email,
             validateSMTP: true,
             validateTypo: false,
             validateDisposable: false,
         });
+        console.log(`[Email Validator] Results for ${email}:`, JSON.stringify({ valid, reason, validators }, null, 2));
         
         if (!valid) {
-            const reasonMsg = validators[reason]?.reason || "Invalid or non-existent email address";
-            throw new ApiError(400, `Email validation failed: ${reasonMsg}`);
+            const validatorInfo = validators[reason];
+            const reasonMsg = String(validatorInfo?.reason || "Invalid or non-existent email address");
+            
+            // Bypass mx/smtp checks if they fail due to network/system errors (like AggregateError or DNS timeouts)
+            const isNetworkError = reasonMsg.includes("AggregateError") || 
+                                   reasonMsg.includes("ECONN") || 
+                                   reasonMsg.includes("ETIMEOUT") || 
+                                   (reasonMsg.includes("ENOTFOUND") && reasonMsg !== "MX record not found");
+            
+            if (reason === "smtp" || (reason === "mx" && isNetworkError)) {
+                console.warn(`[Email Validator] Warning: '${reason}' check failed for ${email} with message: '${reasonMsg}'. Bypassing error to prevent network block.`);
+            } else {
+                console.error(`[Email Validator] Rejecting email ${email} due to validation failure: ${reasonMsg}`);
+                throw new ApiError(400, `Email validation failed: ${reasonMsg}`);
+            }
+        } else {
+            console.log(`[Email Validator] Email ${email} is valid!`);
         }
     } catch (err) {
+        console.error(`[Email Validator] Caught error during validation for ${email}:`, err);
         if (err instanceof ApiError) throw err;
     }
 

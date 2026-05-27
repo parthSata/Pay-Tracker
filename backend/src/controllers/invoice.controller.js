@@ -147,17 +147,36 @@ const createInvoice = asyncHandler(async (req, res) => {
 
     // Verify if the client email actually exists (MX records and Syntax)
     try {
+        console.log(`[Email Validator] Starting client email validation for email: ${clientEmail}`);
         const { valid, reason, validators } = await emailValidator({
             email: clientEmail,
             validateSMTP: true,
             validateTypo: false,
             validateDisposable: false,
         });
+        console.log(`[Email Validator] Results for client ${clientEmail}:`, JSON.stringify({ valid, reason, validators }, null, 2));
+        
         if (!valid) {
-            const reasonMsg = validators[reason]?.reason || "Invalid or non-existent email address";
-            throw new ApiError(400, `Client email validation failed: ${reasonMsg}`);
+            const validatorInfo = validators[reason];
+            const reasonMsg = String(validatorInfo?.reason || "Invalid or non-existent email address");
+            
+            // Bypass mx/smtp checks if they fail due to network/system errors (like AggregateError or DNS timeouts)
+            const isNetworkError = reasonMsg.includes("AggregateError") || 
+                                   reasonMsg.includes("ECONN") || 
+                                   reasonMsg.includes("ETIMEOUT") || 
+                                   (reasonMsg.includes("ENOTFOUND") && reasonMsg !== "MX record not found");
+            
+            if (reason === "smtp" || (reason === "mx" && isNetworkError)) {
+                console.warn(`[Email Validator] Warning: '${reason}' check failed for ${clientEmail} with message: '${reasonMsg}'. Bypassing error to prevent network block.`);
+            } else {
+                console.error(`[Email Validator] Rejecting client email ${clientEmail} due to validation failure: ${reasonMsg}`);
+                throw new ApiError(400, `Client email validation failed: ${reasonMsg}`);
+            }
+        } else {
+            console.log(`[Email Validator] Client email ${clientEmail} is valid!`);
         }
     } catch (err) {
+        console.error(`[Email Validator] Caught error during client validation for ${clientEmail}:`, err);
         if (err instanceof ApiError) throw err;
     }
 
