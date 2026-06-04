@@ -85,8 +85,9 @@ const registerUser = asyncHandler( async (req, res) => {
                     `
                     <h3>Welcome back!</h3>
                     <p>It looks like you haven't verified your account yet. Please click the button below to activate it:</p>
-                    <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
-                    <p>${verificationUrl}</p>
+                    <div style="margin: 20px 0;">
+                        <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
+                    </div>
                     `
                 );
 
@@ -120,9 +121,9 @@ const registerUser = asyncHandler( async (req, res) => {
             `
             <h3>Welcome to Pay Tracker!</h3>
             <p>Please verify your email address to activate your account:</p>
-            <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
-            <p>If the button doesn't work, copy and paste this link into your browser:</p>
-            <p>${verificationUrl}</p>
+            <div style="margin: 20px 0;">
+                <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
+            </div>
             `
         );
 
@@ -368,8 +369,9 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
         `
         <h3>Welcome back!</h3>
         <p>You requested a new verification link. Please click the button below to activate your account:</p>
-        <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
-        <p>${verificationUrl}</p>
+        <div style="margin: 20px 0;">
+            <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
+        </div>
         `
     );
 

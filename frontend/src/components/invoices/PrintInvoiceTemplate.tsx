@@ -8,8 +8,6 @@ interface PrintInvoiceTemplateProps {
 }
 
 export function PrintInvoiceTemplate({ id, invoice, qrCodeUrl }: PrintInvoiceTemplateProps) {
-  if (!invoice) return null;
-
   const {
     merchant,
     total,
@@ -18,6 +16,8 @@ export function PrintInvoiceTemplate({ id, invoice, qrCodeUrl }: PrintInvoiceTem
     formattedDueDate,
     headerBgColor,
   } = usePrintInvoiceTemplate({ invoice });
+
+  if (!invoice) return null;
 
   return (
     <div

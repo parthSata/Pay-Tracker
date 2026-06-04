@@ -15,8 +15,8 @@ export function VerifyEmailCard({ status, message, onNavigate }: VerifyEmailCard
       <CardHeader className="text-center">
         <div className="flex justify-center mb-4">
            <Link to="/" className="flex items-center justify-center">
-            <div className="h-12 w-[72px] rounded-lg border border-border bg-white overflow-hidden flex items-center justify-center shrink-0">
-              <img src="/PayTracker-Logo.png" alt="Logo" className="h-full w-full object-cover" />
+            <div className="h-12 w-48 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/PayTracker-Logo.png" alt="Pay Tracker Logo" className="h-32 w-auto object-contain" />
             </div>
           </Link>
         </div>

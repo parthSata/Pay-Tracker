@@ -114,6 +114,8 @@
   "payment_failed_reassure": "ચિંતા ન કરો — કોઈ રકમ કાપવામાં આવી નથી. તમે UPI, QR કોડ અથવા રેઝરપે વડે સુરક્ષિત રીતે ફરી પ્રયત્ન કરી શકો છો.",
   "payment_failed_code": "કોડ",
   "payment_failed_retry": "ફરી ચુકવણી કરો",
+  "payment_open_upi": "Open UPI app",
+  "payment_paid_upi": "I paid with QR/UPI",
   "terms_title": "સેવાની શરતો",
   "terms_last_updated": "છેલ્લે અપડેટ કરેલ: મે ૨૦૨૬",
   "terms_intro": "પે ટ્રેકરમાં આપનું સ્વાગત છે. કૃપા કરીને અમારી સેવાનો ઉપયોગ કરતા પહેલા આ શરતો કાળજીપૂર્વક વાંચો.",
