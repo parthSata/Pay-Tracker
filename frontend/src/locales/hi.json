@@ -114,6 +114,8 @@
   "payment_failed_reassure": "चिंता न करें — कोई राशि नहीं काटी गई। आप UPI, QR कोड या रेज़रपे से सुरक्षित रूप से दोबारा प्रयास कर सकते हैं।",
   "payment_failed_code": "कोड",
   "payment_failed_retry": "फिर से भुगतान करें",
+  "payment_open_upi": "Open UPI app",
+  "payment_paid_upi": "I paid with QR/UPI",
   "terms_title": "सेवा की शर्तें",
   "terms_last_updated": "अंतिम अपडेट: मई 2026",
   "terms_intro": "पे ट्रैकर में आपका स्वागत है। हमारी सेवा का उपयोग करने से पहले कृपया इन शर्तों को ध्यान से पढ़ें।",

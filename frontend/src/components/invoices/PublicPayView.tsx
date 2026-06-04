@@ -2,6 +2,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PublicInvoiceCard } from "@/components/invoices/PublicInvoiceCard";
 import { PublicPaymentCard } from "@/components/invoices/PublicPaymentCard";
 import { InvoiceTimeline } from "@/components/invoices/InvoiceTimeline";
+import { PaymentAuditLog } from "@/components/invoices/PaymentAuditLog";
 import { PrintInvoiceTemplate } from "@/components/invoices/PrintInvoiceTemplate";
 import { Footer } from "@/components/layout/Footer";
 
@@ -15,9 +16,6 @@ interface PublicPayViewProps {
   dismissPaymentFailure?: () => void;
   qrUrl: string;
   total: number;
-  upiId: string;
-  copied: boolean;
-  copy: () => Promise<void> | void;
   downloadPDF: () => void;
   initiateOnlinePayment: () => void;
   resetPaymentLock?: () => void;
@@ -35,9 +33,6 @@ export function PublicPayView({
   dismissPaymentFailure,
   qrUrl,
   total,
-  upiId,
-  copied,
-  copy,
   downloadPDF,
   initiateOnlinePayment,
   resetPaymentLock,
@@ -56,16 +51,14 @@ export function PublicPayView({
             canResetLock={canResetLock}
             paymentFailure={paymentFailure}
             dismissPaymentFailure={dismissPaymentFailure}
-            qrUrl={qrUrl}
-            copy={copy}
-            copied={copied}
-            upiId={upiId}
             inv={invoice}
             downloadPDF={downloadPDF}
             initiateOnlinePayment={initiateOnlinePayment}
             resetPaymentLock={resetPaymentLock}
           />
         </div>
+
+        <PaymentAuditLog audit={invoice?.paymentAudit} isCreator={isCreator} />
 
         {isCreator && (
           <div className="mt-6">

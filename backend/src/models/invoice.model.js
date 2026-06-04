@@ -75,6 +75,23 @@ const invoiceSchema = new Schema(
         razorpayLinkId: {
             type: String, // Razorpay Link ID (plink_...)
         },
+        razorpayUpiEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        razorpayUpiLinkEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        razorpayQrCodeId: {
+            type: String, // Razorpay QR Code ID (qr_...)
+        },
+        razorpayQrImageUrl: {
+            type: String, // Razorpay-hosted QR image URL
+        },
+        razorpayQrString: {
+            type: String, // UPI payload returned by Razorpay for QR generation
+        },
         paymentMethod: {
             type: String,
             enum: ["UPI", "RAZORPAY", "MANUAL"],
@@ -87,6 +104,10 @@ const invoiceSchema = new Schema(
         // the public payment view enters a "Verifying" lock to prevent duplicate payments.
         paymentInitiatedAt: {
             type: Date,
+        },
+        paymentInitiatedChannel: {
+            type: String,
+            enum: ["RAZORPAY", "UPI"],
         },
         // Captured whenever a Razorpay payment attempt fails (via webhook or polling).
         // The frontend uses this to show a "Payment Failed — Try Again" state instead of
@@ -102,6 +123,73 @@ const invoiceSchema = new Schema(
         },
         paymentProof: {
             type: String, // Cloudinary URL
+        },
+        paymentConfirmation: {
+            emailMerchantSentAt: {
+                type: Date,
+            },
+            emailPayerSentAt: {
+                type: Date,
+            },
+            inAppMerchantSentAt: {
+                type: Date,
+            },
+            inAppPayerSentAt: {
+                type: Date,
+            },
+        },
+        paymentAttempts: [
+            {
+                attemptNumber: {
+                    type: Number,
+                    required: true,
+                },
+                attemptedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                method: {
+                    type: String,
+                    default: "RAZORPAY",
+                },
+                status: {
+                    type: String,
+                    enum: ["STARTED", "FAILED", "SUCCESS", "RESET"],
+                    required: true,
+                },
+                amount: {
+                    type: Number,
+                },
+                gateway: {
+                    type: String,
+                },
+                gatewayPaymentId: {
+                    type: String,
+                },
+                failureReason: {
+                    type: String,
+                },
+                failureCode: {
+                    type: String,
+                },
+                source: {
+                    type: String,
+                },
+            }
+        ],
+        refundStatus: {
+            type: String,
+            enum: ["NOT_REQUESTED", "PENDING", "PROCESSED", "FAILED"],
+            default: "NOT_REQUESTED",
+        },
+        refundUpdatedAt: {
+            type: Date,
+        },
+        refundReference: {
+            type: String,
+        },
+        refundReason: {
+            type: String,
         },
         notes: {
             type: String,

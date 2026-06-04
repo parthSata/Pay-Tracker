@@ -41,7 +41,7 @@ export function PaymentSection({ status, qrUrl, copy, copied, upiId, inv }: Paym
           >
             <div className="text-left">
               <div className="text-[9px] uppercase font-bold opacity-60">Merchant UPI ID</div>
-              <div className="text-xs font-mono font-bold truncate max-w-[150px]">{upiId}</div>
+              <div className="text-xs font-mono font-bold truncate max-w-37.5">{upiId}</div>
             </div>
             {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
           </Button>
