@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import QRCode from "qrcode";
 import { toast } from "sonner";
 import { useAuth } from "../auth";
 import { useRouter } from "@tanstack/react-router";
 import axios from "axios";
 
+import { getApiBaseUrl } from "@/lib/api";
 import { downloadInvoicePDF } from "@/lib/pdf";
 
 const mapActionToType = (action: string): "created" | "reminder" | "opened" | "pending" | "escalation" | "responded" | "paid" => {
@@ -55,13 +55,12 @@ const loadRazorpayCheckout = () =>
 export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
   const router = useRouter();
   const { user } = useAuth();
+  const apiBaseUrl = getApiBaseUrl();
 
-  const [copied, setCopied] = useState(false);
-  const [qrUrl, setQrUrl] = useState("");
   // Optimistic local lock so the UI flips to "Verifying" the instant the payer clicks
   // an online payment option — we don't wait for the next loader round-trip.
   const [localLockAt, setLocalLockAt] = useState<number | null>(null);
-  const [localLockChannel, setLocalLockChannel] = useState<"RAZORPAY" | "UPI" | null>(null);
+  const [, setLocalLockChannel] = useState<"RAZORPAY" | null>(null);
   // Drives "show reset escape-hatch" UI without re-rendering every tick.
   const [now, setNow] = useState<number>(() => Date.now());
   // Surfaced when Razorpay reports a failed payment attempt (via webhook or polling).
@@ -77,9 +76,6 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
 
   const serverLockMs = typeof inv?.paymentLockWindowMs === "number" ? inv.paymentLockWindowMs : DEFAULT_LOCK_WINDOW_MS;
   const serverInitiatedAt = inv?.paymentInitiatedAt ? new Date(inv.paymentInitiatedAt).getTime() : null;
-  const serverLockChannel = inv?.paymentInitiatedChannel === "UPI" || inv?.paymentInitiatedChannel === "RAZORPAY"
-    ? inv.paymentInitiatedChannel
-    : null;
   // Honor whichever lock is fresher — the optimistic local one or the server one.
   const effectiveInitiatedAt = useMemo(() => {
     if (status === "PAID") return null;
@@ -97,7 +93,6 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
 
   const lockElapsedMs = effectiveInitiatedAt ? now - effectiveInitiatedAt : 0;
   const lockExpired = effectiveInitiatedAt ? lockElapsedMs >= serverLockMs : false;
-  const effectiveLockChannel = localLockChannel ?? serverLockChannel;
   const isPaymentLocked =
     status !== "PAID" &&
     !paymentFailure &&
@@ -105,24 +100,12 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
 
   // Show "Reset & try again" only after a soft timeout so panicked payers don't
   // immediately bypass the safety net.
-  const canResetLock = isPaymentLocked && (effectiveLockChannel === "UPI" || lockElapsedMs >= RESET_OFFER_AFTER_MS);
+  const canResetLock = isPaymentLocked && lockElapsedMs >= RESET_OFFER_AFTER_MS;
 
   const isVerifying = isPaymentLocked;
 
   const tax = inv?.gstAmount || 0;
   const total = inv?.totalAmount || ((inv?.amount || 0) + tax);
-  const upiId = inv?.userId?.upiId || inv?.sme?.upiId || "merchant@upi";
-  const merchantName = inv?.userId?.businessName || inv?.userId?.name || inv?.sme?.businessName || inv?.sme?.name || "Merchant";
-  const directUpiUri = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(merchantName)}&am=${total}&cu=INR&tn=${encodeURIComponent(`Invoice ${inv?.invoiceNumber}`)}`;
-  const upiUri = inv?.razorpayQrString || (inv?.razorpayQrImageUrl ? "" : directUpiUri);
-
-  useEffect(() => {
-    if (inv?.razorpayQrImageUrl) {
-      setQrUrl(inv.razorpayQrImageUrl);
-    } else if (upiUri) {
-      QRCode.toDataURL(upiUri, { width: 400, margin: 1 }).then(setQrUrl).catch(console.error);
-    }
-  }, [inv?.razorpayQrImageUrl, upiUri]);
 
   // Tick once a second only while a lock is live, so we can show countdown / reset UI.
   useEffect(() => {
@@ -138,48 +121,6 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
       setLocalLockChannel(null);
     }
   }, [status, localLockAt]);
-
-  // While locked, aggressively poll the verify-payment endpoint: it both fetches
-  // Razorpay's authoritative status AND short-circuits to PAID the moment the webhook
-  // arrives. On success we invalidate the loader to refresh the whole invoice.
-  // It also reports `paymentFailed` so we can exit the verifying state on a failed attempt.
-  useEffect(() => {
-    if (!isPaymentLocked || !inv?._id) return;
-    let active = true;
-
-    const checkPayment = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/invoices/${inv._id}/verify-payment`);
-        if (!active) return;
-        const data = res.data?.data;
-        if (data?.verified) {
-          toast.success("Payment verified successfully!");
-          setPaymentFailure(null);
-          setLocalLockAt(null);
-          setLocalLockChannel(null);
-          router.invalidate();
-          return;
-        }
-        if (data?.paymentFailed) {
-          const reason: string = data.failureReason || "Payment could not be completed";
-          setPaymentFailure({ reason, code: data.failureCode || null });
-          setLocalLockAt(null);
-          setLocalLockChannel(null);
-          toast.error(`Payment failed: ${reason}`);
-          router.invalidate();
-        }
-      } catch (e) {
-        console.error("Verification error:", e);
-      }
-    };
-
-    checkPayment();
-    const interval = setInterval(checkPayment, 2500);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [isPaymentLocked, inv?._id, router]);
 
   // Keep failure UI in sync when the loader brings fresh invoice data.
   // (e.g., webhook fired → re-fetch → invoice has lastPaymentFailureAt populated)
@@ -204,14 +145,6 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
     return () => clearInterval(interval);
   }, [status, isPaymentLocked, router]);
 
-  const copy = useCallback(async () => {
-    if (isPaymentLocked || status === "PAID") return;
-    await navigator.clipboard.writeText(upiId);
-    setCopied(true);
-    toast.success("UPI ID copied");
-    setTimeout(() => setCopied(false), 1500);
-  }, [isPaymentLocked, status, upiId]);
-
   const downloadPDF = useCallback(() => {
     if (inv) {
       downloadInvoicePDF("invoice-print-container", inv.invoiceNumber);
@@ -221,35 +154,16 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
   /**
    * Stamp the verification lock on the backend BEFORE handing control to the payment
    * provider. We do this first so even if the user closes/refreshes the page, the
-   * server still remembers the lock — preventing duplicate payments via UPI/QR on
-   * the same invoice.
+   * server still remembers the lock and avoids duplicate Razorpay attempts.
    */
-  const startPaymentVerification = useCallback(async (channel: "RAZORPAY" | "UPI") => {
-    if (!inv?._id || status === "PAID") return null;
-
-    // A fresh attempt clears any prior failure banner.
-    setPaymentFailure(null);
-    setLocalLockAt(Date.now());
-    setLocalLockChannel(channel);
-
-    try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/invoices/${inv._id}/initiate-payment`, { channel });
-      router.invalidate();
-      return response.data?.data || { paymentLink: inv.paymentLink };
-    } catch (e) {
-      console.error("Failed to mark payment as initiated:", e);
-      return null;
-    }
-  }, [inv?._id, status, router]);
-
   const releaseLockSilently = useCallback(async () => {
     if (!inv?._id) return;
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/invoices/${inv._id}/reset-payment-lock`);
+      await axios.post(`${apiBaseUrl}/invoices/${inv._id}/reset-payment-lock`);
     } catch (e) {
       console.error("Failed to silently clear verification lock:", e);
     }
-  }, [inv?._id]);
+  }, [apiBaseUrl, inv?._id]);
 
   const initiateOnlinePayment = useCallback(async () => {
     if (!inv?._id || status === "PAID") return;
@@ -265,7 +179,7 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
     setLocalLockChannel("RAZORPAY");
 
     try {
-      const orderResponse = await axios.post(`${import.meta.env.VITE_API_URL}/invoices/${inv._id}/razorpay-order`);
+      const orderResponse = await axios.post(`${apiBaseUrl}/invoices/${inv._id}/razorpay-order`);
       const order = orderResponse.data?.data;
       if (!order?.orderId || !order?.key) {
         throw new Error("Razorpay order could not be created");
@@ -287,26 +201,11 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
           invoice_id: inv._id,
           invoice_number: inv.invoiceNumber,
         },
-        config: {
-          display: {
-            blocks: {
-              upi: {
-                name: "Pay via UPI",
-                instruments: [{ method: "upi" }]
-              },
-              other: {
-                name: "Other Payment Modes",
-                instruments: [{ method: "card" }, { method: "netbanking" }, { method: "wallet" }]
-              }
-            },
-            sequence: ["block.upi", "block.other"],
-            preferences: { show_default_blocks: true }
-          }
-        },
+        ...(order.checkoutOptions || {}),
         handler: async (response: any) => {
           try {
             const verifyResponse = await axios.post(
-              `${import.meta.env.VITE_API_URL}/invoices/${inv._id}/verify-razorpay-order`,
+              `${apiBaseUrl}/invoices/${inv._id}/verify-razorpay-order`,
               response
             );
             if (verifyResponse.data?.data?.verified) {
@@ -317,7 +216,8 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
               router.invalidate();
             }
           } catch (e) {
-            console.error("Razorpay order verification failed:", e);
+            const axiosError = e as any;
+            console.error("Razorpay order verification failed:", axiosError?.response?.data || axiosError);
             toast.error("Payment verification failed. Please wait or contact the merchant.");
             router.invalidate();
           }
@@ -331,11 +231,6 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
           },
         },
       };
-      
-      console.log("DEBUG: Razorpay Initialization Options =>", razorpayOptions);
-      console.log("DEBUG: Invoice Data =>", inv);
-      console.log("DEBUG: Order Data =>", order);
-
       const checkout = new Razorpay(razorpayOptions);
 
       checkout.on("payment.failed", async (response: any) => {
@@ -356,26 +251,7 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
       setLocalLockChannel(null);
       toast.error("Could not start Razorpay payment. Please try again.");
     }
-  }, [inv?._id, inv?.invoiceNumber, inv?.clientName, inv?.clientEmail, status, router, releaseLockSilently]);
-
-  const openUpiApp = useCallback(async () => {
-    if (!upiUri) {
-      toast.info("Please scan the Razorpay QR or use the Razorpay payment link.");
-      return;
-    }
-    const started = await startPaymentVerification("UPI");
-    if (started) {
-      toast.info("UPI opened. No need to pay again after completing it.");
-    }
-    window.location.href = upiUri;
-  }, [startPaymentVerification, upiUri]);
-
-  const confirmUpiPayment = useCallback(async () => {
-    const started = await startPaymentVerification("UPI");
-    if (started) {
-      toast.success("Thanks. We are waiting for the merchant to confirm your UPI payment.");
-    }
-  }, [startPaymentVerification]);
+  }, [apiBaseUrl, inv?._id, inv?.invoiceNumber, inv?.clientName, inv?.clientEmail, status, router, releaseLockSilently]);
 
   const dismissPaymentFailure = useCallback(() => {
     setPaymentFailure(null);
@@ -386,14 +262,14 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
     setLocalLockAt(null);
     setLocalLockChannel(null);
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/invoices/${inv._id}/reset-payment-lock`);
+      await axios.post(`${apiBaseUrl}/invoices/${inv._id}/reset-payment-lock`);
       toast.success("Verification cleared — you can try again");
       router.invalidate();
     } catch (e) {
       console.error("Failed to clear verification lock:", e);
       toast.error("Could not clear verification. Please refresh and try again.");
     }
-  }, [inv?._id, router]);
+  }, [apiBaseUrl, inv?._id, router]);
 
   const timelineEvents = logs.map((log: any) => ({
     id: log._id,
@@ -410,7 +286,7 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
     { id: "3", type: "opened" as const, date: new Date(Date.now() - 259200000).toISOString(), title: "Email Opened", desc: "Client viewed the invoice link." },
     { id: "4", type: "pending" as const, date: new Date(Date.now() - 172800000).toISOString(), title: "Payment Pending", desc: "Invoice is pending for 5 days." },
     { id: "5", type: "escalation" as const, date: new Date(Date.now() - 86400000).toISOString(), title: "Escalation Sent", desc: "Strict follow-up sent via email." },
-    { id: "6", type: "paid" as const, date: new Date().toISOString(), title: "Paid", desc: "Payment received via UPI." }
+    { id: "6", type: "paid" as const, date: new Date().toISOString(), title: "Paid", desc: "Payment received via Razorpay." }
   ];
 
   return {
@@ -422,16 +298,10 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
     canResetLock,
     paymentFailure,
     dismissPaymentFailure,
-    qrUrl,
     tax,
     total,
-    upiId,
-    copied,
-    copy,
     downloadPDF,
     initiateOnlinePayment,
-    openUpiApp,
-    confirmUpiPayment,
     resetPaymentLock,
     displayEvents,
   };

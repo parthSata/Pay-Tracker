@@ -1,4 +1,4 @@
-import { CheckCircle2, ArrowRight, Download, ShieldCheck, Loader2, Lock, RotateCcw, XCircle, X, CreditCard, Wallet, QrCode } from "lucide-react";
+import { CheckCircle2, ArrowRight, Download, ShieldCheck, Loader2, Lock, RotateCcw, XCircle, X, CreditCard, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface PublicPaymentCardProps {
@@ -53,7 +53,7 @@ export function PublicPaymentCard({
               <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5 opacity-60">
                 <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <div className="text-left text-xs font-medium text-muted-foreground flex-1 truncate">
-                  UPI inside Razorpay locked during verification
+                  Razorpay Checkout locked during verification
                 </div>
               </div>
               <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5 opacity-60">
@@ -130,18 +130,14 @@ export function PublicPaymentCard({
                         Secure Razorpay Payment
                       </div>
                       <div className="text-lg font-bold mt-1 text-foreground">
-                        Pay via QR, Card or Netbanking
+                        Pay by Card, Netbanking or Wallet
                       </div>
                       <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                        We support Google Pay, Cards, Netbanking, and Wallets for automatic verification.
+                        Complete payment securely in Razorpay Checkout for automatic verification.
                       </p>
 
                       {/* Visual payment chips */}
                       <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
-                          <QrCode className="h-3 w-3 shrink-0 text-primary" />
-                          QR Code
-                        </span>
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
                           <CreditCard className="h-3 w-3 shrink-0 text-primary" />
                           Cards

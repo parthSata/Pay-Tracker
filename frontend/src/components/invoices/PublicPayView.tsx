@@ -14,7 +14,6 @@ interface PublicPayViewProps {
   canResetLock?: boolean;
   paymentFailure?: { reason: string; code: string | null } | null;
   dismissPaymentFailure?: () => void;
-  qrUrl: string;
   total: number;
   downloadPDF: () => void;
   initiateOnlinePayment: () => void;
@@ -31,7 +30,6 @@ export function PublicPayView({
   canResetLock,
   paymentFailure,
   dismissPaymentFailure,
-  qrUrl,
   total,
   downloadPDF,
   initiateOnlinePayment,
@@ -71,7 +69,7 @@ export function PublicPayView({
 
       {/* Hidden print container for capturing white professional A4 layout in PDF */}
       <div style={{ position: "fixed", left: "-9999px", top: "0", width: "794px", minHeight: "1123px", zIndex: -100 }}>
-        <PrintInvoiceTemplate id="invoice-print-container" invoice={invoice} qrCodeUrl={qrUrl} />
+        <PrintInvoiceTemplate id="invoice-print-container" invoice={invoice} />
       </div>
     </AppShell>
   );

@@ -2,6 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import axios from "axios";
 import { usePublicPay } from "@/hooks/usePublicPay";
 import { PublicPayView } from "@/components/invoices/PublicPayView";
+import { getApiBaseUrl } from "@/lib/api";
 import { z } from "zod";
 
 const paySearchSchema = z.object({
@@ -16,13 +17,14 @@ export const Route = createFileRoute("/pay/$id")({
   validateSearch: paySearchSchema,
   loader: async ({ params }) => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/invoices/${params.id}`);
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await axios.get(`${apiBaseUrl}/invoices/${params.id}`);
       
       const token = localStorage.getItem("pay_tracker_token");
       let logs = [];
       if (token) {
         try {
-          const logsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/users/activity?invoiceId=${params.id}`, {
+          const logsResponse = await axios.get(`${apiBaseUrl}/users/activity?invoiceId=${params.id}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           logs = logsResponse.data.data;
@@ -39,7 +41,7 @@ export const Route = createFileRoute("/pay/$id")({
   head: ({ loaderData }) => ({
     meta: [
       { title: `Pay ${loaderData?.invoice?.invoiceNumber ?? "invoice"} — Pay Tracker` },
-      { name: "description", content: "Secure payment via UPI or Razorpay." },
+      { name: "description", content: "Secure payment via Razorpay." },
     ],
   }),
   component: PublicPay,

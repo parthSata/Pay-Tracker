@@ -31,7 +31,6 @@ const getRazorpayInstance = () => {
     }
     return razorpay;
 };
-
 // Verification lock window: after a payer clicks "Pay via Razorpay", we treat the
 // invoice as "verifying" for this duration to prevent duplicate payments — even if
 // the payer never returns to the app or reloads the tab.
@@ -80,6 +79,51 @@ const getAttemptAmount = (invoice) => invoice?.totalAmount || invoice?.amount ||
 
 const getNextAttemptNumber = (invoice) => ((invoice.paymentAttempts || []).length + 1);
 
+const sanitizePaymentAttempts = (invoice) => {
+    if (!invoice) return;
+    const attempts = Array.isArray(invoice.paymentAttempts) ? invoice.paymentAttempts : [];
+    invoice.paymentAttempts = attempts
+        .filter(Boolean)
+        .map((attempt, index) => {
+            const hasFailure = Boolean(attempt?.failureReason || attempt?.failureCode);
+            const hasGatewayPayment = Boolean(attempt?.gatewayPaymentId);
+            const fallbackStatus = hasFailure ? "FAILED" : (hasGatewayPayment ? "SUCCESS" : "STARTED");
+            return {
+                ...(attempt.toObject?.() || attempt),
+                attemptNumber: attempt?.attemptNumber || index + 1,
+                attemptedAt: attempt?.attemptedAt || new Date(),
+                method: normalizeAuditMethod(attempt?.method),
+                status: attempt?.status || fallbackStatus,
+                amount: attempt?.amount ?? getAttemptAmount(invoice),
+            };
+        });
+};
+
+const sanitizePublicAssetUrl = (value) => {
+    if (!value || typeof value !== "string") return value;
+    try {
+        const parsed = new URL(value);
+        const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+        if (parsed.protocol !== "https:" || localHosts.has(parsed.hostname)) {
+            return "";
+        }
+        return value;
+    } catch {
+        return "";
+    }
+};
+
+const sanitizePublicInvoiceMedia = (invoiceData) => {
+    if (!invoiceData) return invoiceData;
+    const target = invoiceData.sme || invoiceData.userId;
+    if (target) {
+        target.profilePic = sanitizePublicAssetUrl(target.profilePic);
+        target.logoUrl = sanitizePublicAssetUrl(target.logoUrl);
+        target.signatureUrl = sanitizePublicAssetUrl(target.signatureUrl);
+    }
+    return invoiceData;
+};
+
 const findActivePaymentAttempt = (invoice, method) => {
     const normalizedMethod = normalizeAuditMethod(method);
     return [...(invoice.paymentAttempts || [])]
@@ -90,6 +134,7 @@ const findActivePaymentAttempt = (invoice, method) => {
 const recordPaymentStarted = (invoice, { method = "RAZORPAY", gateway = null, source = "payment-started" } = {}) => {
     if (!invoice) return null;
     invoice.paymentAttempts = invoice.paymentAttempts || [];
+    sanitizePaymentAttempts(invoice);
     const activeAttempt = findActivePaymentAttempt(invoice, method);
     if (activeAttempt) return activeAttempt;
 
@@ -123,6 +168,7 @@ const recordPaymentSuccess = (invoice, {
 } = {}) => {
     if (!invoice) return null;
     invoice.paymentAttempts = invoice.paymentAttempts || [];
+    sanitizePaymentAttempts(invoice);
     const existingSuccess = gatewayPaymentId
         ? invoice.paymentAttempts.find((attempt) => attempt.gatewayPaymentId === gatewayPaymentId && attempt.status === "SUCCESS")
         : invoice.paymentAttempts.find((attempt) => attempt.status === "SUCCESS");
@@ -133,9 +179,15 @@ const recordPaymentSuccess = (invoice, {
         attempt = {
             attemptNumber: getNextAttemptNumber(invoice),
             attemptedAt: new Date(invoice.paidAt || Date.now()),
+            method: normalizeAuditMethod(method),
+            status: "SUCCESS",
             amount: getAttemptAmount(invoice),
+            gateway,
+            gatewayPaymentId,
+            source,
         };
         invoice.paymentAttempts.push(attempt);
+        return attempt;
     }
 
     attempt.method = normalizeAuditMethod(method);
@@ -159,15 +211,24 @@ const recordPaymentFailure = (invoice, {
 } = {}) => {
     if (!invoice) return null;
     invoice.paymentAttempts = invoice.paymentAttempts || [];
+    sanitizePaymentAttempts(invoice);
 
     let attempt = findPaymentAttemptForOutcome(invoice, { method, gatewayPaymentId });
     if (!attempt) {
         attempt = {
             attemptNumber: getNextAttemptNumber(invoice),
             attemptedAt: new Date(),
+            method: normalizeAuditMethod(method),
+            status: "FAILED",
             amount: getAttemptAmount(invoice),
+            gateway,
+            gatewayPaymentId,
+            failureReason,
+            failureCode,
+            source,
         };
         invoice.paymentAttempts.push(attempt);
+        return attempt;
     }
 
     attempt.method = normalizeAuditMethod(method);
@@ -184,6 +245,7 @@ const recordPaymentFailure = (invoice, {
 const recordPaymentReset = (invoice, source = "payment-lock-reset") => {
     if (!invoice) return null;
     invoice.paymentAttempts = invoice.paymentAttempts || [];
+    sanitizePaymentAttempts(invoice);
     const activeAttempt = [...invoice.paymentAttempts].reverse().find((attempt) => attempt.status === "STARTED");
     const method = activeAttempt?.method || invoice.paymentInitiatedChannel || invoice.paymentMethod || "RAZORPAY";
     const attempt = {
@@ -486,6 +548,7 @@ const persistPaymentFailure = async (invoice, reason, code, source = "Razorpay",
         action: "PAYMENT_FAILED",
         details: `${source} payment failed: ${invoice.lastPaymentFailureReason}${invoice.lastPaymentFailureCode ? ` (${invoice.lastPaymentFailureCode})` : ""}`
     });
+    sanitizePaymentAttempts(invoice);
     await invoice.save();
     return true;
 };
@@ -538,7 +601,6 @@ const buildRazorpayPaymentLinkPayload = ({ invoice, frontendUrl }) => {
     return {
         amount: Math.round((invoice.totalAmount || invoice.amount || 0) * 100),
         currency: "INR",
-        upi_link: true,
         accept_partial: false,
         description: `Invoice ${invoice.invoiceNumber} for ${invoice.clientName}`,
         customer: {
@@ -568,6 +630,21 @@ const buildRazorpayOrderPayload = (invoice) => ({
     notes: {
         invoice_id: invoice._id.toString(),
         invoice_number: invoice.invoiceNumber,
+    },
+});
+
+const buildRazorpayCheckoutOptions = () => ({
+    config: {
+        display: {
+            blocks: {
+                standard: {
+                    name: "Cards, Netbanking and Wallets",
+                    instruments: [{ method: "card" }, { method: "netbanking" }, { method: "wallet" }],
+                },
+            },
+            sequence: ["block.standard"],
+            preferences: { show_default_blocks: false },
+        },
     },
 });
 
@@ -808,51 +885,8 @@ const createInvoice = asyncHandler(async (req, res) => {
 
     // Pre-generate MongoDB ObjectId to supply to Razorpay callback URL
     const invoiceId = new mongoose.Types.ObjectId();
-    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
-
-    // Generate Razorpay Payment Link
     let paymentLink = "";
     let razorpayLinkId;
-    const razorpayInstance = getRazorpayInstance();
-    if (razorpayInstance) {
-        try {
-            // Razorpay accepts expire_by as a unix-second timestamp; min 15min, max 1yr.
-            // We expire 30 days after the invoice due date (or 60 days from now, whichever is later)
-            // so stale links can't accept payments after the invoice cycle has wrapped up.
-            const dueMs = new Date(dueDate).getTime();
-            const sixtyDaysFromNow = Date.now() + 60 * 24 * 60 * 60 * 1000;
-            const expireBy = Math.floor(Math.max(dueMs + 30 * 24 * 60 * 60 * 1000, sixtyDaysFromNow) / 1000);
-
-            const razorpayResponse = await razorpayInstance.paymentLink.create({
-                amount: Math.round(totalAmount * 100), // amount in paise, inclusive of GST
-                currency: "INR",
-                upi_link: true,
-                accept_partial: false,
-                description: `Invoice ${invoiceNumber} for ${clientName}`,
-                customer: {
-                    name: clientName,
-                    email: clientEmail,
-                },
-                notify: {
-                    sms: false,
-                    email: false,
-                },
-                reminder_enable: true,
-                expire_by: expireBy,
-                reference_id: invoiceId.toString(),
-                notes: {
-                    invoice_id: invoiceId.toString(),
-                    invoice_number: invoiceNumber,
-                },
-                callback_url: `${frontendUrl}/pay/${invoiceId}`,
-                callback_method: "get"
-            });
-            paymentLink = razorpayResponse.short_url;
-            razorpayLinkId = razorpayResponse.id;
-        } catch (error) {
-            console.error("Razorpay Error:", error);
-        }
-    }
 
     const invoice = await Invoice.create({
         _id: invoiceId,
@@ -873,8 +907,8 @@ const createInvoice = asyncHandler(async (req, res) => {
         token,
         paymentLink,
         razorpayLinkId,
-        razorpayUpiEnabled: !!paymentLink,
-        razorpayUpiLinkEnabled: !!paymentLink,
+        razorpayUpiEnabled: false,
+        razorpayUpiLinkEnabled: false,
         paymentMethod: paymentMethod || "RAZORPAY",
         status: "PENDING",
         notes,
@@ -998,9 +1032,6 @@ const getInvoices = asyncHandler(async (req, res) => {
                 }
             }
 
-            if (isUnpaidInvoice(invoices[i]) && invoices[i].razorpayQrCodeId) {
-                await syncRazorpayQrPayment(invoices[i], "invoice-list-qr-sync");
-            }
         }
     }
 
@@ -1008,7 +1039,7 @@ const getInvoices = asyncHandler(async (req, res) => {
         const data = invoice.toObject();
         data.paymentAudit = buildPaymentAudit(invoice, { includeSensitive: true });
         delete data.paymentAttempts;
-        return data;
+        return sanitizePublicInvoiceMedia(data);
     });
 
     return res.status(200).json(
@@ -1026,8 +1057,6 @@ const getInvoiceById = asyncHandler(async (req, res) => {
     if (!invoice) {
         throw new ApiError(404, "Invoice not found");
     }
-
-    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
 
     // Check Razorpay status if pending
     if (isUnpaidInvoice(invoice) && invoice.razorpayLinkId) {
@@ -1064,14 +1093,6 @@ const getInvoiceById = asyncHandler(async (req, res) => {
         }
     }
 
-    if (isUnpaidInvoice(invoice)) {
-        await ensureRazorpayUpiPaymentLink(invoice, frontendUrl);
-    }
-
-    if (isUnpaidInvoice(invoice) && invoice.razorpayQrCodeId) {
-        await syncRazorpayQrPayment(invoice, "invoice-public-qr-sync");
-    }
-
     // Transform userId to 'sme' for the frontend
     const invoiceData = invoice.toObject();
     const isOwner = req.user?._id?.toString() === invoice.userId?._id?.toString();
@@ -1081,6 +1102,7 @@ const getInvoiceById = asyncHandler(async (req, res) => {
     delete invoiceData.refundReason;
     invoiceData.sme = invoiceData.userId;
     delete invoiceData.userId;
+    sanitizePublicInvoiceMedia(invoiceData);
 
     // Expose verification-lock state to the public payer view.
     // The frontend uses these to render the "Verifying your payment..." UI and hide
@@ -1152,8 +1174,6 @@ const searchInvoice = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Invoice not found or email mismatch");
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
-
     // Check Razorpay status if pending
     if (isUnpaidInvoice(invoice) && invoice.razorpayLinkId) {
         const razorpayInstance = getRazorpayInstance();
@@ -1181,19 +1201,12 @@ const searchInvoice = asyncHandler(async (req, res) => {
         }
     }
 
-    if (isUnpaidInvoice(invoice)) {
-        await ensureRazorpayUpiPaymentLink(invoice, frontendUrl);
-    }
-
-    if (isUnpaidInvoice(invoice) && invoice.razorpayQrCodeId) {
-        await syncRazorpayQrPayment(invoice, "invoice-search-qr-sync");
-    }
-
     const invoiceData = invoice.toObject();
     invoiceData.paymentAudit = buildPaymentAudit(invoice, { includeSensitive: false });
     delete invoiceData.paymentAttempts;
     delete invoiceData.refundReference;
     delete invoiceData.refundReason;
+    sanitizePublicInvoiceMedia(invoiceData);
 
     return res.status(200).json(
         new ApiResponse(200, invoiceData, "Invoice found")
@@ -1377,7 +1390,7 @@ const getReceivedInvoices = asyncHandler(async (req, res) => {
         delete data.paymentAttempts;
         delete data.refundReference;
         delete data.refundReason;
-        return data;
+        return sanitizePublicInvoiceMedia(data);
     });
 
     return res.status(200).json(
@@ -1830,16 +1843,6 @@ const verifyPayment = asyncHandler(async (req, res) => {
         }
     }
 
-    if (!paymentFailed && await syncRazorpayQrPayment(invoice, "verify-razorpay-qr")) {
-        return res.status(200).json(
-            new ApiResponse(
-                200,
-                { verified: true, status: "PAID", isPaymentLocked: false },
-                "Payment verified successfully"
-            )
-        );
-    }
-
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -1913,6 +1916,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
                 invoiceNumber: invoice.invoiceNumber,
                 clientName: invoice.clientName,
                 clientEmail: invoice.clientEmail,
+                checkoutOptions: buildRazorpayCheckoutOptions(),
             },
             "Razorpay order created"
         )
@@ -1979,6 +1983,7 @@ const verifyRazorpayOrderPayment = asyncHandler(async (req, res) => {
         action: "PAID",
         details: `Payment verified via Razorpay Checkout (${razorpay_payment_id})`
     });
+    sanitizePaymentAttempts(invoice);
     await invoice.save();
 
     await cancelRazorpayLinkSafe(invoice.razorpayLinkId);
@@ -2010,7 +2015,6 @@ const verifyRazorpayOrderPayment = asyncHandler(async (req, res) => {
  */
 const initiatePayment = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { channel } = req.body || {};
     const invoice = await Invoice.findById(id);
     if (!invoice) {
         throw new ApiError(404, "Invoice not found");
@@ -2026,24 +2030,19 @@ const initiatePayment = asyncHandler(async (req, res) => {
         );
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
-    if (channel !== "UPI") {
-        await ensureRazorpayUpiPaymentLink(invoice, frontendUrl, { force: true });
-    }
-
     // Only refresh the stamp if we don't already have an active lock — keeps the
     // original timeout window honest if the payer clicks again.
     if (!isPaymentLocked(invoice)) {
         invoice.paymentInitiatedAt = new Date();
-        invoice.paymentInitiatedChannel = channel === "UPI" ? "UPI" : "RAZORPAY";
+        invoice.paymentInitiatedChannel = "RAZORPAY";
         recordPaymentStarted(invoice, {
             method: invoice.paymentInitiatedChannel,
-            gateway: invoice.paymentInitiatedChannel === "UPI" ? "UPI" : "RAZORPAY",
+            gateway: "RAZORPAY",
             source: "payment-initiated",
         });
         invoice.history.push({
             action: "PAYMENT_INITIATED",
-            details: `Payer initiated ${channel === "UPI" ? "UPI/QR" : "online"} payment — verification lock engaged.`
+            details: "Payer initiated Razorpay Checkout payment - verification lock engaged."
         });
         await invoice.save();
     }
