@@ -53,6 +53,83 @@ const formatINR = (amount) => {
     }).format(value);
 };
 
+const addBusinessDays = (dateInput, businessDays) => {
+    const date = new Date(dateInput);
+    let remaining = businessDays;
+    while (remaining > 0) {
+        date.setDate(date.getDate() + 1);
+        const day = date.getDay();
+        if (day !== 0 && day !== 6) {
+            remaining -= 1;
+        }
+    }
+    return date;
+};
+
+const normalizeRefundStatus = (status = "NOT_REQUESTED") => {
+    if (status === "PENDING") return "PROCESSING";
+    return status;
+};
+
+const normalizeFailureSignal = (reason = "", code = "") => {
+    const rawReason = String(reason || "").trim();
+    const rawCode = String(code || "").trim().toUpperCase();
+    const haystack = `${rawReason} ${rawCode}`.toLowerCase();
+
+    if (
+        rawCode.includes("INSUFFICIENT") ||
+        haystack.includes("insufficient funds") ||
+        haystack.includes("insufficient balance") ||
+        haystack.includes("low balance")
+    ) {
+        return {
+            title: "Insufficient balance",
+            detail: "Your bank account did not have enough balance to complete the payment.",
+        };
+    }
+
+    if (
+        rawCode.includes("DECLIN") ||
+        haystack.includes("bank declined") ||
+        haystack.includes("issuer declined") ||
+        haystack.includes("declined by bank")
+    ) {
+        return {
+            title: "Bank declined",
+            detail: "The bank declined this payment. Please retry or use a different payment method.",
+        };
+    }
+
+    if (
+        rawCode.includes("TIMEOUT") ||
+        haystack.includes("timed out") ||
+        haystack.includes("timeout") ||
+        haystack.includes("collect request expired") ||
+        haystack.includes("payment session expired")
+    ) {
+        return {
+            title: "UPI timeout",
+            detail: "The payment request timed out before it was completed.",
+        };
+    }
+
+    if (
+        rawCode.includes("CANCEL") ||
+        haystack.includes("cancelled by user") ||
+        haystack.includes("user cancelled")
+    ) {
+        return {
+            title: "Payment cancelled",
+            detail: "The payment was cancelled before it could be completed.",
+        };
+    }
+
+    return {
+        title: rawReason || "Payment could not be completed",
+        detail: "The payment did not go through. Please retry once or use another payment method.",
+    };
+};
+
 const getInvoiceUserId = (invoice) => invoice?.userId?._id || invoice?.userId;
 
 const formatPaymentMethod = (method) => {
@@ -275,6 +352,9 @@ const buildPaymentAudit = (invoice, { includeSensitive = false } = {}) => {
             failureCode: attempt.failureCode,
             source: attempt.source,
         };
+        if (attempt.failureReason || attempt.failureCode) {
+            base.failureExplanation = normalizeFailureSignal(attempt.failureReason, attempt.failureCode);
+        }
         if (includeSensitive) {
             base.gatewayPaymentId = attempt.gatewayPaymentId;
         }
@@ -293,14 +373,70 @@ const buildPaymentAudit = (invoice, { includeSensitive = false } = {}) => {
         });
     }
     const failedAttempts = attempts.filter((attempt) => attempt.status === "FAILED").length;
+    const normalizedRefundStatus = normalizeRefundStatus(invoice?.refundStatus || "NOT_REQUESTED");
+    const refundInitiatedAt = invoice?.refundInitiatedAt || (normalizedRefundStatus !== "NOT_REQUESTED" ? invoice?.refundUpdatedAt : null);
+    const refundExpectedAt =
+        invoice?.refundExpectedAt ||
+        (refundInitiatedAt && ["INITIATED", "PROCESSING"].includes(normalizedRefundStatus)
+            ? addBusinessDays(refundInitiatedAt, 5)
+            : null);
+
+    const refundTracking = normalizedRefundStatus === "NOT_REQUESTED"
+        ? null
+        : {
+            status: normalizedRefundStatus,
+            initiatedAt: refundInitiatedAt,
+            expectedArrivalDate: refundExpectedAt,
+            completedAt: normalizedRefundStatus === "PROCESSED" ? (invoice?.refundUpdatedAt || refundExpectedAt) : null,
+            stages: [
+                {
+                    key: "initiated",
+                    label: "Refund initiated",
+                    state: refundInitiatedAt ? "complete" : (normalizedRefundStatus === "FAILED" ? "failed" : "current"),
+                    date: refundInitiatedAt || invoice?.refundUpdatedAt || null,
+                },
+                {
+                    key: "processing",
+                    label: "Processing",
+                    state:
+                        normalizedRefundStatus === "FAILED"
+                            ? "failed"
+                            : normalizedRefundStatus === "INITIATED"
+                                ? "upcoming"
+                                : ["PROCESSING", "PROCESSED"].includes(normalizedRefundStatus)
+                                    ? "complete"
+                                    : "upcoming",
+                    date: ["PROCESSING", "PROCESSED", "FAILED"].includes(normalizedRefundStatus) ? invoice?.refundUpdatedAt || refundInitiatedAt : null,
+                },
+                {
+                    key: "arrival",
+                    label: normalizedRefundStatus === "PROCESSED" ? "Refund completed" : "Expected arrival",
+                    state:
+                        normalizedRefundStatus === "PROCESSED"
+                            ? "complete"
+                            : normalizedRefundStatus === "FAILED"
+                                ? "failed"
+                                : ["INITIATED", "PROCESSING"].includes(normalizedRefundStatus)
+                                    ? "current"
+                                    : "upcoming",
+                    date:
+                        normalizedRefundStatus === "PROCESSED"
+                            ? (invoice?.refundUpdatedAt || refundExpectedAt)
+                            : refundExpectedAt,
+                },
+            ],
+        };
 
     return {
         status: invoice?.status,
         method: invoice?.paymentMethod,
         paidAt: invoice?.paidAt,
         retryCount: failedAttempts,
-        refundStatus: invoice?.refundStatus || "NOT_REQUESTED",
+        refundStatus: normalizedRefundStatus,
+        refundInitiatedAt,
         refundUpdatedAt: invoice?.refundUpdatedAt,
+        refundExpectedAt,
+        refundTracking,
         ...(includeSensitive ? {
             refundReference: invoice?.refundReference,
             refundReason: invoice?.refundReason,
@@ -529,9 +665,10 @@ const findInvoiceFromRazorpayPayload = async (razorpayLinkId, paymentEntity) => 
 
 const persistPaymentFailure = async (invoice, reason, code, source = "Razorpay", attemptMeta = {}) => {
     if (!invoice || invoice.status === "PAID") return false;
+    const normalizedFailure = normalizeFailureSignal(reason, code);
 
     invoice.lastPaymentFailureAt = new Date();
-    invoice.lastPaymentFailureReason = reason || "Payment could not be completed";
+    invoice.lastPaymentFailureReason = normalizedFailure.title;
     invoice.lastPaymentFailureCode = code || null;
     recordPaymentFailure(invoice, {
         method: attemptMeta.method || invoice.paymentInitiatedChannel || "RAZORPAY",
@@ -684,13 +821,13 @@ const ensureRazorpayUpiPaymentLink = async (invoice, frontendUrl, { force = fals
 
         invoice.paymentLink = response.short_url;
         invoice.razorpayLinkId = response.id;
-        invoice.razorpayUpiEnabled = true;
-        invoice.razorpayUpiLinkEnabled = true;
+        invoice.razorpayUpiEnabled = false;
+        invoice.razorpayUpiLinkEnabled = false;
         invoice.history.push({
             action: "RAZORPAY_LINK_REFRESHED",
             details: force
-                ? "Created a fresh Razorpay UPI payment link before checkout"
-                : "Upgraded Razorpay payment link to UPI mode"
+                ? "Created a fresh Razorpay payment link before checkout"
+                : "Created a secure Razorpay payment link"
         });
         await invoice.save();
 
@@ -885,6 +1022,7 @@ const createInvoice = asyncHandler(async (req, res) => {
 
     // Pre-generate MongoDB ObjectId to supply to Razorpay callback URL
     const invoiceId = new mongoose.Types.ObjectId();
+    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
     let paymentLink = "";
     let razorpayLinkId;
 
@@ -921,6 +1059,10 @@ const createInvoice = asyncHandler(async (req, res) => {
     if (!invoice) {
         throw new ApiError(500, "Something went wrong while creating the invoice");
     }
+
+    await ensureRazorpayUpiPaymentLink(invoice, frontendUrl);
+    paymentLink = invoice.paymentLink || "";
+    razorpayLinkId = invoice.razorpayLinkId;
 
     // Send invoice email. Payments go through Razorpay so UPI, cards, netbanking,
     // and wallets all share the same gateway verification path.
@@ -1001,6 +1143,9 @@ const getInvoices = asyncHandler(async (req, res) => {
     const razorpayInstance = getRazorpayInstance();
     if (razorpayInstance) {
         for (let i = 0; i < invoices.length; i++) {
+            if (isUnpaidInvoice(invoices[i]) && invoices[i].razorpayQrCodeId) {
+                await syncRazorpayQrPayment(invoices[i], "invoice-list-qr-sync");
+            }
             if (isUnpaidInvoice(invoices[i]) && invoices[i].razorpayLinkId) {
                 try {
                     const plink = await razorpayInstance.paymentLink.fetch(invoices[i].razorpayLinkId);
@@ -1059,6 +1204,10 @@ const getInvoiceById = asyncHandler(async (req, res) => {
     }
 
     // Check Razorpay status if pending
+    if (isUnpaidInvoice(invoice) && invoice.razorpayQrCodeId) {
+        await syncRazorpayQrPayment(invoice, "invoice-public-qr-sync");
+    }
+
     if (isUnpaidInvoice(invoice) && invoice.razorpayLinkId) {
         const razorpayInstance = getRazorpayInstance();
         if (razorpayInstance) {
@@ -1091,6 +1240,11 @@ const getInvoiceById = asyncHandler(async (req, res) => {
                 console.error(`Failed to fetch status for ${invoice.invoiceNumber}:`, error);
             }
         }
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
+    if (isUnpaidInvoice(invoice) && !invoice.paymentLink) {
+        await ensureRazorpayUpiPaymentLink(invoice, frontendUrl);
     }
 
     // Transform userId to 'sme' for the frontend
@@ -1175,6 +1329,10 @@ const searchInvoice = asyncHandler(async (req, res) => {
     }
 
     // Check Razorpay status if pending
+    if (isUnpaidInvoice(invoice) && invoice.razorpayQrCodeId) {
+        await syncRazorpayQrPayment(invoice, "invoice-search-qr-sync");
+    }
+
     if (isUnpaidInvoice(invoice) && invoice.razorpayLinkId) {
         const razorpayInstance = getRazorpayInstance();
         if (razorpayInstance) {
@@ -1726,6 +1884,19 @@ const verifyPayment = asyncHandler(async (req, res) => {
     let failureCode = null;
     let linkExpired = false;
 
+    if (invoice.razorpayQrCodeId) {
+        const qrSynced = await syncRazorpayQrPayment(invoice, "verify-payment-qr-sync");
+        if (qrSynced || invoice.status === "PAID") {
+            return res.status(200).json(
+                new ApiResponse(
+                    200,
+                    { verified: true, status: "PAID", isPaymentLocked: false },
+                    "Payment verified successfully"
+                )
+            );
+        }
+    }
+
     // If it's pending, let's fetch the latest status from Razorpay's API
     if (invoice.razorpayLinkId) {
         const razorpayInstance = getRazorpayInstance();
@@ -2109,8 +2280,9 @@ const resetPaymentLock = asyncHandler(async (req, res) => {
 const updateRefundStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { refundStatus, refundReference, refundReason } = req.body;
+    const normalizedRefundStatus = normalizeRefundStatus(refundStatus);
 
-    if (!["NOT_REQUESTED", "PENDING", "PROCESSED", "FAILED"].includes(refundStatus)) {
+    if (!["NOT_REQUESTED", "INITIATED", "PROCESSING", "PROCESSED", "FAILED"].includes(normalizedRefundStatus)) {
         throw new ApiError(400, "Invalid refund status");
     }
 
@@ -2123,13 +2295,28 @@ const updateRefundStatus = asyncHandler(async (req, res) => {
         throw new ApiError(403, "You can update refunds only for your own invoices");
     }
 
-    invoice.refundStatus = refundStatus;
-    invoice.refundUpdatedAt = new Date();
+    const now = new Date();
+    invoice.refundStatus = normalizedRefundStatus;
+    invoice.refundUpdatedAt = now;
     invoice.refundReference = refundReference || invoice.refundReference;
     invoice.refundReason = refundReason || invoice.refundReason;
+
+    if (normalizedRefundStatus === "NOT_REQUESTED") {
+        invoice.refundInitiatedAt = undefined;
+        invoice.refundExpectedAt = undefined;
+    } else {
+        invoice.refundInitiatedAt = invoice.refundInitiatedAt || now;
+        if (["INITIATED", "PROCESSING"].includes(normalizedRefundStatus)) {
+            invoice.refundExpectedAt = addBusinessDays(invoice.refundInitiatedAt, 5);
+        }
+        if (normalizedRefundStatus === "PROCESSED") {
+            invoice.refundExpectedAt = invoice.refundExpectedAt || now;
+        }
+    }
+
     invoice.history.push({
         action: "REFUND_STATUS_UPDATED",
-        details: `Refund status updated to ${refundStatus}`
+        details: `Refund status updated to ${normalizedRefundStatus}`
     });
     await invoice.save();
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import QRCode from "qrcode";
 import { toast } from "sonner";
 import { useAuth } from "../auth";
 import { useRouter } from "@tanstack/react-router";
@@ -61,6 +62,7 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
   // an online payment option — we don't wait for the next loader round-trip.
   const [localLockAt, setLocalLockAt] = useState<number | null>(null);
   const [, setLocalLockChannel] = useState<"RAZORPAY" | null>(null);
+  const [paymentLinkQrUrl, setPaymentLinkQrUrl] = useState("");
   // Drives "show reset escape-hatch" UI without re-rendering every tick.
   const [now, setNow] = useState<number>(() => Date.now());
   // Surfaced when Razorpay reports a failed payment attempt (via webhook or polling).
@@ -107,6 +109,16 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
   const tax = inv?.gstAmount || 0;
   const total = inv?.totalAmount || ((inv?.amount || 0) + tax);
 
+  useEffect(() => {
+    if (!inv?.paymentLink) {
+      setPaymentLinkQrUrl("");
+      return;
+    }
+    QRCode.toDataURL(inv.paymentLink, { width: 360, margin: 1 })
+      .then(setPaymentLinkQrUrl)
+      .catch(() => setPaymentLinkQrUrl(""));
+  }, [inv?.paymentLink]);
+
   // Tick once a second only while a lock is live, so we can show countdown / reset UI.
   useEffect(() => {
     if (!isPaymentLocked) return;
@@ -140,10 +152,47 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
   // Light background polling for pending invoices that are NOT actively verifying —
   // catches UPI payments / manual marks-as-paid that don't go through the lock flow.
   useEffect(() => {
-    if (status === "PAID" || isPaymentLocked) return;
-    const interval = setInterval(() => router.invalidate(), 5000);
-    return () => clearInterval(interval);
-  }, [status, isPaymentLocked, router]);
+    if (!inv?._id || status === "PAID") return;
+
+    let cancelled = false;
+
+    const pollVerification = async () => {
+      try {
+        const response = await axios.get(`${apiBaseUrl}/invoices/${inv._id}/verify-payment`);
+        if (cancelled) return;
+
+        const verification = response.data?.data || {};
+
+        if (verification.verified || verification.status === "PAID") {
+          setPaymentFailure(null);
+          setLocalLockAt(null);
+          setLocalLockChannel(null);
+          router.invalidate();
+          return;
+        }
+
+        if (verification.paymentFailed && verification.failureReason) {
+          setPaymentFailure({
+            reason: verification.failureReason,
+            code: verification.failureCode || null,
+          });
+          router.invalidate();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Background payment verification failed:", error);
+        }
+      }
+    };
+
+    pollVerification();
+    const interval = setInterval(pollVerification, isPaymentLocked ? 3000 : 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [apiBaseUrl, inv?._id, isPaymentLocked, router, status]);
 
   const downloadPDF = useCallback(() => {
     if (inv) {
@@ -164,6 +213,22 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
       console.error("Failed to silently clear verification lock:", e);
     }
   }, [apiBaseUrl, inv?._id]);
+
+  const markPaymentInitiated = useCallback(async () => {
+    if (!inv?._id || status === "PAID") return false;
+    try {
+      setPaymentFailure(null);
+      setLocalLockAt(Date.now());
+      setLocalLockChannel("RAZORPAY");
+      await axios.post(`${apiBaseUrl}/invoices/${inv._id}/initiate-payment`, {});
+      return true;
+    } catch (e) {
+      console.error("Failed to mark payment as initiated:", e);
+      setLocalLockAt(null);
+      setLocalLockChannel(null);
+      return false;
+    }
+  }, [apiBaseUrl, inv?._id, status]);
 
   const initiateOnlinePayment = useCallback(async () => {
     if (!inv?._id || status === "PAID") return;
@@ -235,7 +300,7 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
 
       checkout.on("payment.failed", async (response: any) => {
         const error = response?.error || {};
-        const reason = error.description || "Payment could not be completed";
+        const reason = error.reason || error.description || "Payment could not be completed";
         setPaymentFailure({ reason, code: error.code || null });
         setLocalLockAt(null);
         setLocalLockChannel(null);
@@ -252,6 +317,12 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
       toast.error("Could not start Razorpay payment. Please try again.");
     }
   }, [apiBaseUrl, inv?._id, inv?.invoiceNumber, inv?.clientName, inv?.clientEmail, status, router, releaseLockSilently]);
+
+  const openPaymentLink = useCallback(async () => {
+    if (!inv?.paymentLink || status === "PAID") return;
+    await markPaymentInitiated();
+    window.open(inv.paymentLink, "_blank", "noopener,noreferrer");
+  }, [inv?.paymentLink, markPaymentInitiated, status]);
 
   const dismissPaymentFailure = useCallback(() => {
     setPaymentFailure(null);
@@ -298,10 +369,12 @@ export function usePublicPay(inv: any, logs: any[] = [], searchParams?: any) {
     canResetLock,
     paymentFailure,
     dismissPaymentFailure,
+    paymentLinkQrUrl,
     tax,
     total,
     downloadPDF,
     initiateOnlinePayment,
+    openPaymentLink,
     resetPaymentLock,
     displayEvents,
   };

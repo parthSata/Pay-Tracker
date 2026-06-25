@@ -14,9 +14,11 @@ interface PublicPayViewProps {
   canResetLock?: boolean;
   paymentFailure?: { reason: string; code: string | null } | null;
   dismissPaymentFailure?: () => void;
+  paymentLinkQrUrl?: string;
   total: number;
   downloadPDF: () => void;
   initiateOnlinePayment: () => void;
+  openPaymentLink: () => void;
   resetPaymentLock?: () => void;
   displayEvents: any[];
   invoice: any;
@@ -30,30 +32,46 @@ export function PublicPayView({
   canResetLock,
   paymentFailure,
   dismissPaymentFailure,
+  paymentLinkQrUrl,
   total,
   downloadPDF,
   initiateOnlinePayment,
+  openPaymentLink,
   resetPaymentLock,
   displayEvents,
   invoice
 }: PublicPayViewProps) {
+  const showPaymentPanel = !isCreator;
+  const pageWidthClass = showPaymentPanel ? "max-w-375" : "max-w-5xl";
+  const contentLayoutClass = showPaymentPanel
+    ? "grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_420px] xl:items-start 2xl:grid-cols-[minmax(0,1.22fr)_460px]"
+    : "space-y-6";
+
   return (
     <AppShell variant={user ? "app" : "minimal"} hideFooter={true}>
-      <div className="max-w-5xl mx-auto py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <PublicInvoiceCard inv={invoice} total={total} status={status} />
-          <PublicPaymentCard
-            isCreator={isCreator}
-            status={status}
-            isVerifying={isVerifying}
-            canResetLock={canResetLock}
-            paymentFailure={paymentFailure}
-            dismissPaymentFailure={dismissPaymentFailure}
+      <div className={`mx-auto w-full ${pageWidthClass} py-6 sm:py-8`}>
+        <div className={contentLayoutClass}>
+          <PublicInvoiceCard
             inv={invoice}
-            downloadPDF={downloadPDF}
-            initiateOnlinePayment={initiateOnlinePayment}
-            resetPaymentLock={resetPaymentLock}
+            total={total}
+            status={status}
+            paymentLinkQrUrl={paymentLinkQrUrl}
+            openPaymentLink={openPaymentLink}
           />
+          {showPaymentPanel && (
+            <PublicPaymentCard
+              isCreator={isCreator}
+              status={status}
+              isVerifying={isVerifying}
+              canResetLock={canResetLock}
+              paymentFailure={paymentFailure}
+              dismissPaymentFailure={dismissPaymentFailure}
+              inv={invoice}
+              downloadPDF={downloadPDF}
+              initiateOnlinePayment={initiateOnlinePayment}
+              resetPaymentLock={resetPaymentLock}
+            />
+          )}
         </div>
 
         <PaymentAuditLog audit={invoice?.paymentAudit} isCreator={isCreator} />

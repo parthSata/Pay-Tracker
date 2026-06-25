@@ -179,10 +179,16 @@ const invoiceSchema = new Schema(
         ],
         refundStatus: {
             type: String,
-            enum: ["NOT_REQUESTED", "PENDING", "PROCESSED", "FAILED"],
+            enum: ["NOT_REQUESTED", "INITIATED", "PROCESSING", "PENDING", "PROCESSED", "FAILED"],
             default: "NOT_REQUESTED",
         },
+        refundInitiatedAt: {
+            type: Date,
+        },
         refundUpdatedAt: {
+            type: Date,
+        },
+        refundExpectedAt: {
             type: Date,
         },
         refundReference: {

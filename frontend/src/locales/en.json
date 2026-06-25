@@ -111,7 +111,7 @@
   "payment_reset_lock": "Didn't pay? Reset & try again",
   "payment_failed_title": "Payment could not be completed",
   "payment_failed_generic": "Your last payment attempt did not go through.",
-  "payment_failed_reassure": "Don't worry — no amount was charged. You can safely try again through Razorpay, including UPI.",
+  "payment_failed_reassure": "Don't worry - no amount was charged. You can safely try again through Razorpay.",
   "payment_failed_code": "Code",
   "payment_failed_retry": "Try Payment Again",
   "payment_open_upi": "Open UPI app",
@@ -163,3 +163,4 @@
   "support_card_chat_title": "Live Chat",
   "support_card_chat_desc": "Chat with our support agents"
 }
+
